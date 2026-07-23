@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  web:
+    build: 
+      context: ./huddle-web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./huddle-web:/app
+    environment:
+      - NODE_ENV=development
+    # We will just run via node locally for now, so a dockerfile might not be needed if not using Docker.
+    # However, for local orchestration:
+    command: npm run dev -- --host 0.0.0.0
+    
+  chat-server:
+    build:
+      context: ./huddle-chat-server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./huddle-chat-server:/app
+    command: npm run dev
+
+  ai-engine:
+    build:
+      context: ./huddle-ai-engine
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./huddle-ai-engine:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=huddle
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
