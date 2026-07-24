@@ -33,30 +33,30 @@ const ResetPassword = () => {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Invalid Reset Link</h2>
-          <p className="text-gray-400">The password reset link is invalid or has expired.</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Invalid Reset Link</h2>
+          <p className="text-slate-500">The password reset link is invalid or has expired.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="w-full max-w-md bg-gray-900/60 backdrop-blur-xl p-8 rounded-2xl border border-gray-800 shadow-2xl relative z-10">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="w-full max-w-md bg-white/80 backdrop-blur-xl p-8 rounded-2xl border border-slate-200 shadow-2xl relative z-10">
         
         {status === 'success' ? (
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">Password Reset Successful</h2>
-            <p className="text-gray-400 mb-6">You will be redirected to the login page shortly.</p>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Password Reset Successful</h2>
+            <p className="text-slate-500 mb-6">You will be redirected to the login page shortly.</p>
           </div>
         ) : (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white tracking-tight">Set new password</h1>
-              <p className="text-gray-400 mt-2">Enter your new password below.</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Set new password</h1>
+              <p className="text-slate-500 mt-2">Enter your new password below.</p>
             </div>
 
             {status === 'error' && (
@@ -67,34 +67,34 @@ const ResetPassword = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">New Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-500" />
+                    <Lock className="h-5 w-5 text-slate-400" />
                   </div>
                   <input 
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50/50 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Confirm New Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-500" />
+                    <Lock className="h-5 w-5 text-slate-400" />
                   </div>
                   <input 
                     type="password" 
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-xl bg-gray-950/50 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50/50 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="••••••••"
                   />
                 </div>
@@ -103,7 +103,7 @@ const ResetPassword = () => {
               <button 
                 type="submit" 
                 disabled={status === 'loading'}
-                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 focus:ring-offset-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-slate-900 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 focus:ring-offset-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {status === 'loading' ? 'Saving...' : (
                   <>

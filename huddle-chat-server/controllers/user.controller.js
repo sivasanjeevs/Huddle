@@ -5,7 +5,12 @@ exports.getProfile = async (req, res) => {
     const userId = req.user.id;
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, avatar: true, googleId: true, createdAt: true },
+      select: { 
+        id: true, email: true, name: true, avatar: true, 
+        workOrCollege: true, bio: true, interests: true, 
+        skills: true, location: true, socialLinks: true,
+        googleId: true, createdAt: true 
+      },
     });
 
     if (!user) {
@@ -22,12 +27,16 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, avatar } = req.body;
+    const { name, avatar, workOrCollege, bio, interests, skills, location, socialLinks } = req.body;
 
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { name, avatar },
-      select: { id: true, email: true, name: true, avatar: true },
+      data: { name, avatar, workOrCollege, bio, interests, skills, location, socialLinks },
+      select: { 
+        id: true, email: true, name: true, avatar: true,
+        workOrCollege: true, bio: true, interests: true,
+        skills: true, location: true, socialLinks: true
+      },
     });
 
     res.json(user);

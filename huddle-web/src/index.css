@@ -1,7 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Urbanist", ui-sans-serif, system-ui, sans-serif;
+}
 
 @layer base {
   body {
-    @apply bg-gray-900 text-gray-100 antialiased;
+    @apply text-slate-900 antialiased;
   }
 }

@@ -16,8 +16,14 @@ model User {
   id               String    @id @default(uuid())
   email            String    @unique
   password         String
-  name             String?
+  name             String
   avatar           String?
+  workOrCollege    String?
+  bio              String?
+  interests        String[]
+  skills           String[]
+  location         String?
+  socialLinks      Json?
   googleId         String?   @unique
   resetToken       String?
   resetTokenExpiry DateTime?
