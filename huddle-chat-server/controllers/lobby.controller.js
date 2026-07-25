@@ -150,3 +150,29 @@ exports.getLobbyMessages = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+exports.deleteLobby = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const lobby = await prisma.lobby.findUnique({ where: { id } });
+    if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
+
+    if (lobby.creatorId !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this lobby' });
+    }
+
+    // Delete related records
+    await prisma.lobbyParticipant.deleteMany({ where: { lobbyId: id } });
+    await prisma.lobbyMessage.deleteMany({ where: { lobbyId: id } });
+
+    // Delete lobby
+    await prisma.lobby.delete({ where: { id } });
+
+    res.json({ message: 'Lobby deleted successfully' });
+  } catch (error) {
+    console.error('Delete lobby error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

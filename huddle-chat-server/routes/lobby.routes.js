@@ -9,5 +9,6 @@ router.get('/my-lobbies', authenticate, lobbyController.getMyLobbies);
 router.post('/:id/join', authenticate, lobbyController.joinLobby);
 router.get('/:id', authenticate, lobbyController.getLobbyById);
 router.get('/:id/messages', authenticate, lobbyController.getLobbyMessages);
+router.delete('/:id', authenticate, lobbyController.deleteLobby);
 
 module.exports = router;

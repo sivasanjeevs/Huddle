@@ -22,6 +22,9 @@ model User {
   bio              String?
   interests        String[]
   skills           String[]
+  favoriteCategories String[]
+  lookingFor       String[]
+  preferences      Json?
   location         String?
   socialLinks      Json?
   googleId         String?   @unique

@@ -29,5 +29,10 @@ export const lobbyService = {
   joinLobby: async (lobbyId) => {
     const response = await api.post(`/lobbies/${lobbyId}/join`);
     return response.data;
+  },
+
+  deleteLobby: async (lobbyId) => {
+    const response = await api.delete(`/lobbies/${lobbyId}`);
+    return response.data;
   }
 };

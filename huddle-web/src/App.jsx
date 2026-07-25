@@ -57,7 +57,7 @@ const Layout = ({ children }) => {
               {/* Create Lobby */}
               <Link
                 to="/create-lobby"
-                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition-all"
+                className="flex items-center gap-1.5 bg-blue-600/70 backdrop-blur-md border border-blue-400/50 hover:bg-blue-600/90 hover:border-blue-300 shadow-[0_4px_12px_-2px_rgba(37,99,235,0.3)] text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
