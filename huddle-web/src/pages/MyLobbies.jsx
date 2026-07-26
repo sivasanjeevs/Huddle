@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { lobbyService } from '../services/lobbyService';
 import { Link } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
 
 function MyLobbies() {
   const [lobbies, setLobbies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmModal, setConfirmModal] = useState({ open: false, type: null, targetId: null, loading: false });
+  const { user } = useAuthStore();
 
   useEffect(() => {
     const fetchMyLobbies = async () => {
@@ -21,7 +25,48 @@ function MyLobbies() {
     fetchMyLobbies();
   }, []);
 
+  const handleEndLobby = async () => {
+    const lobbyId = confirmModal.targetId;
+    setConfirmModal(m => ({ ...m, loading: true }));
+    try {
+      await lobbyService.deleteLobby(lobbyId);
+      setLobbies(lobbies.map(l => l.id === lobbyId ? { ...l, active: false } : l));
+      setConfirmModal({ open: false, type: null, targetId: null, loading: false });
+    } catch (error) {
+      setConfirmModal(m => ({ ...m, loading: false }));
+      const msg = error?.response?.data?.error || 'Failed to end the event.';
+      alert(`Error: ${msg}`);
+    }
+  };
+
+  const handleRepostLobby = async (lobbyId) => {
+    try {
+      await lobbyService.updateLobby(lobbyId, { active: true });
+      setLobbies(lobbies.map(l => l.id === lobbyId ? { ...l, active: true } : l));
+    } catch (error) {
+      console.error('Failed to repost lobby', error);
+      alert('Failed to repost the event.');
+    }
+  };
+
+  const handleHardDeleteLobby = async () => {
+    const lobbyId = confirmModal.targetId;
+    setConfirmModal(m => ({ ...m, loading: true }));
+    try {
+      await lobbyService.hardDeleteLobby(lobbyId);
+      setLobbies(lobbies.filter(l => l.id !== lobbyId));
+      setConfirmModal({ open: false, type: null, targetId: null, loading: false });
+    } catch (error) {
+      setConfirmModal(m => ({ ...m, loading: false }));
+      const msg = error?.response?.data?.error || 'Failed to delete the event.';
+      alert(`Error: ${msg}`);
+    }
+  };
+
+
+
   return (
+    <>
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
@@ -59,12 +104,19 @@ function MyLobbies() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {lobbies.map(lobby => (
-              <div key={lobby.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+            {lobbies.map(lobby => {
+              const isCreator = user?.id === lobby.creatorId;
+              return (
+              <div key={lobby.id} className={`bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col ${!lobby.active ? 'opacity-75 grayscale-[0.3]' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
-                  <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100">
-                    {lobby.category.replace(/[^a-zA-Z ]/g, "").trim()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100">
+                      {lobby.category?.replace(/[^a-zA-Z ]/g, "").trim()}
+                    </span>
+                    <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border ${lobby.active ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                      {lobby.active ? 'Live' : 'Inactive'}
+                    </span>
+                  </div>
                   <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -87,32 +139,83 @@ function MyLobbies() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <img 
-                      src={lobby.creator?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${lobby.creatorId}`} 
-                      alt="Host" 
-                      className="w-8 h-8 rounded-full border border-slate-200"
-                    />
-                    <div className="text-xs">
-                      <p className="text-slate-400 font-medium">Hosted by</p>
-                      <p className="text-slate-700 font-semibold">{lobby.creator?.name || 'User'}</p>
+                <div className="mt-auto pt-4 border-t border-slate-100 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <img 
+                        src={lobby.creator?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${lobby.creatorId}`} 
+                        alt="Host" 
+                        className="w-8 h-8 rounded-full border border-slate-200"
+                      />
+                      <div className="text-xs">
+                        <p className="text-slate-400 font-medium">Hosted by</p>
+                        <p className="text-slate-700 font-semibold">{lobby.creator?.name || 'User'}</p>
+                      </div>
                     </div>
+                    
+                    <Link 
+                      to={`/lobbies/${lobby.id}`}
+                      className="px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      View
+                    </Link>
                   </div>
                   
-                  <Link 
-                    to={`/lobbies/${lobby.id}`}
-                    className="px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                  >
-                    View Lobby
-                  </Link>
+                  {isCreator && (
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-50">
+                      {lobby.active ? (
+                        <button
+                          onClick={() => setConfirmModal({ open: true, type: 'end', targetId: lobby.id, loading: false })}
+                          className="px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded transition-colors"
+                        >
+                          End Event
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRepostLobby(lobby.id)}
+                          className="px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
+                        >
+                          Edit & Repost
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setConfirmModal({ open: true, type: 'delete', targetId: lobby.id, loading: false })}
+                        className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                      >
+                        Delete Permanently
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.open && confirmModal.type === 'end'}
+        onClose={() => setConfirmModal({ open: false, type: null, targetId: null, loading: false })}
+        onConfirm={handleEndLobby}
+        loading={confirmModal.loading}
+        title="End this event?"
+        message="This will mark the event as inactive. It will no longer appear in the live feed."
+        confirmText="End Event"
+        confirmColor="amber"
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.open && confirmModal.type === 'delete'}
+        onClose={() => setConfirmModal({ open: false, type: null, targetId: null, loading: false })}
+        onConfirm={handleHardDeleteLobby}
+        loading={confirmModal.loading}
+        title="Delete permanently?"
+        message="This will permanently remove the event and all its data. This action cannot be undone."
+        confirmText="Delete Forever"
+        confirmColor="red"
+      />
     </div>
+    </>
   );
 }
 

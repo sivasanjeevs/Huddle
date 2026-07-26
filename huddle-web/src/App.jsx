@@ -93,10 +93,7 @@ const Layout = ({ children }) => {
                 {/* Dropdown menu */}
                 {profileOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 animate-fade-in">
-                    <div className="px-4 py-2.5 border-b border-slate-100">
-                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Signed in as</p>
-                      <p className="text-sm font-semibold text-slate-800 truncate">{user?.name || 'User'}</p>
-                    </div>
+             
                     <Link
                       to="/my-lobbies"
                       onClick={() => setProfileOpen(false)}

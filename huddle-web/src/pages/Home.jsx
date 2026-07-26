@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { lobbyService } from '../services/lobbyService';
 import useAuthStore from '../store/authStore';
+import LobbyComments from '../components/LobbyComments';
+import ConfirmModal from '../components/ConfirmModal';
 const GROUPED_CATEGORIES = [
   { 
     id: 1, 
@@ -48,6 +50,8 @@ function Home() {
   const [joinedLobbies, setJoinedLobbies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [expandedComments, setExpandedComments] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({ open: false, targetId: null, loading: false });
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -66,6 +70,35 @@ function Home() {
     fetchData();
   }, []);
 
+  const handleLike = async (lobbyId) => {
+    if (!user) return alert('Please log in to like a post');
+    try {
+      const res = await lobbyService.toggleLike(lobbyId);
+      setLobbies(lobbies.map(l => {
+        if (l.id === lobbyId) {
+          const isLiked = res.liked;
+          const currentLikesCount = l._count?.likes || 0;
+          return {
+            ...l,
+            likes: isLiked ? [{ id: 'temp' }] : [],
+            _count: { ...l._count, likes: isLiked ? currentLikesCount + 1 : Math.max(0, currentLikesCount - 1) }
+          };
+        }
+        return l;
+      }));
+    } catch (error) {
+      console.error("Failed to toggle like", error);
+    }
+  };
+
+  const toggleComments = (lobbyId) => {
+    if (expandedComments.includes(lobbyId)) {
+      setExpandedComments(expandedComments.filter(id => id !== lobbyId));
+    } else {
+      setExpandedComments([...expandedComments, lobbyId]);
+    }
+  };
+
   const handleJoin = async (lobbyId) => {
     if (!joinedLobbies.includes(lobbyId)) {
       try {
@@ -77,15 +110,17 @@ function Home() {
     }
   };
 
-  const handleDelete = async (lobbyId) => {
-    if (window.confirm("Are you sure you want to end this event?")) {
-      try {
-        await lobbyService.deleteLobby(lobbyId);
-        setLobbies(lobbies.filter(l => l.id !== lobbyId));
-      } catch (error) {
-        console.error("Failed to delete lobby", error);
-        alert("Failed to delete the event.");
-      }
+  const handleDelete = async () => {
+    const lobbyId = confirmModal.targetId;
+    setConfirmModal(m => ({ ...m, loading: true }));
+    try {
+      await lobbyService.deleteLobby(lobbyId);
+      setLobbies(lobbies.filter(l => l.id !== lobbyId));
+      setConfirmModal({ open: false, targetId: null, loading: false });
+    } catch (error) {
+      setConfirmModal(m => ({ ...m, loading: false }));
+      const msg = error?.response?.data?.error || 'Failed to end the event.';
+      alert(`Error: ${msg}`);
     }
   };
 
@@ -103,6 +138,7 @@ function Home() {
   });
 
   return (
+    <>
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
@@ -169,63 +205,108 @@ function Home() {
                   return (
                     <div
                       key={lobby.id}
-                      className="group p-5 bg-white/70 backdrop-blur-xl rounded-2xl border border-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_-4px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-5 overflow-hidden"
+                      className="group bg-white/60 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/80 rounded-3xl overflow-hidden flex transition-all duration-300 mb-6"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-bold text-slate-800 text-lg tracking-tight">{lobby.title}</h3>
+                      {/* Main Content */}
+                      <div className="flex-1 p-6 flex flex-col min-w-0">
+                        {/* Post Meta Header */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
                           {lobby.category && (
-                            <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-slate-100/80 text-slate-600 rounded-full border border-slate-200/50 backdrop-blur-sm">
-                              {lobby.category.replace(/[^a-zA-Z ]/g, "").trim()}
+                            <span 
+                              onClick={() => {
+                                const catObj = GROUPED_CATEGORIES.find(c => c.subCategories.includes(lobby.category));
+                                if (catObj) setSelectedCategory(catObj);
+                              }}
+                              className="font-bold text-slate-800 hover:underline cursor-pointer"
+                            >
+                              h/{(lobby.category.replace(/[^a-zA-Z ]/g, "").trim().replace(/\s+/g, '')).toLowerCase()}
                             </span>
                           )}
-                        </div>
-                        <p className="text-sm text-slate-500 mb-4 line-clamp-2 leading-relaxed">{lobby.description}</p>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="relative flex h-2.5 w-2.5">
+                          <span className="text-slate-500">•</span>
+                          <span className="text-slate-500">
+                            Posted by u/{lobby.creator?.name || 'unknown'}
+                          </span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                            {lobby._count?.participants || 1} {lobby.maxParticipants ? `/ ${lobby.maxParticipants}` : ''} participants
+                          </span>
+                          <span className="text-slate-500 flex items-center gap-1 ml-auto">
+                            <span className="relative flex h-2 w-2">
                               {lobby.active && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${lobby.active ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                              <span className={`relative inline-flex rounded-full h-2 w-2 ${lobby.active ? 'bg-green-500' : 'bg-slate-300'}`}></span>
                             </span>
-                            <span className="text-xs font-semibold text-slate-600">{lobby.active ? 'Live' : 'Idle'}</span>
-                          </div>
-                          <div className="h-1 w-1 rounded-full bg-slate-200"></div>
-                          <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            {lobby._count?.participants || 1} members
+                            {lobby.active ? 'Live Now' : 'Idle'}
                           </span>
                         </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 items-center">
-                        {isCreator && (
-                          <button
-                            onClick={() => handleDelete(lobby.id)}
-                            className="px-6 py-2.5 text-sm font-semibold text-red-600 bg-red-50/50 backdrop-blur-md border border-red-100/50 hover:bg-red-100/80 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)] rounded-xl transition-all duration-300 text-center w-full sm:w-auto"
-                          >
-                            End Event
-                          </button>
+
+                        {/* Post Title & Content */}
+                        <h3 className="font-bold text-slate-900 text-xl tracking-tight mb-2 mt-2 leading-tight">{lobby.title}</h3>
+                        <p className="text-sm text-slate-500 mb-6 line-clamp-3 leading-relaxed">
+                          {lobby.shortDescription || lobby.description}
+                        </p>
+
+                        {/* Post Action Footer */}
+                        <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-1 text-slate-500 font-semibold text-xs">
+                            <button 
+                              onClick={() => handleLike(lobby.id)}
+                              className={`flex items-center gap-1.5 hover:bg-slate-100 px-2 py-1.5 rounded transition-colors ${lobby.likes?.length > 0 ? 'text-red-500' : ''}`}
+                            >
+                              <svg className="w-4 h-4" fill={lobby.likes?.length > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              {lobby._count?.likes || 0} Likes
+                            </button>
+                            <button 
+                              onClick={() => toggleComments(lobby.id)}
+                              className="flex items-center gap-1.5 hover:bg-slate-100 px-2 py-1.5 rounded transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              {lobby._count?.comments || 0} Comments
+                            </button>
+                            <button className="flex items-center gap-1.5 hover:bg-slate-100 px-2 py-1.5 rounded transition-colors hidden sm:flex">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                              </svg>
+                              Share
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            {isCreator && (
+                              <button
+                                onClick={() => setConfirmModal({ open: true, targetId: lobby.id, loading: false })}
+                                className="px-4 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-full transition-colors border border-transparent hover:border-red-200"
+                              >
+                                End Event
+                              </button>
+                            )}
+                            <Link 
+                              to={`/lobbies/${lobby.id}`}
+                              className="px-5 py-2 text-sm font-semibold text-slate-700 bg-slate-100/80 hover:bg-slate-200 rounded-xl transition-all"
+                            >
+                              View
+                            </Link>
+                            <button
+                              onClick={() => handleJoin(lobby.id)}
+                              disabled={isJoined}
+                              className={`px-5 py-2 text-sm font-semibold rounded-xl transition-all shadow-sm ${
+                                isJoined 
+                                  ? 'bg-slate-100 text-slate-400 cursor-default shadow-none' 
+                                  : 'bg-slate-900 text-white hover:bg-slate-800'
+                              }`}
+                            >
+                              {isJoined ? 'Joined' : 'Join'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inline Comments Section */}
+                        {expandedComments.includes(lobby.id) && (
+                          <LobbyComments lobbyId={lobby.id} />
                         )}
-                        {isJoined && (
-                          <Link 
-                            to={`/lobbies/${lobby.id}`}
-                            className="px-6 py-2.5 text-sm font-semibold text-slate-700 bg-white/40 backdrop-blur-md border border-white/60 hover:bg-white/80 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)] rounded-xl transition-all duration-300 text-center w-full sm:w-auto"
-                          >
-                            View
-                          </Link>
-                        )}
-                        <button
-                          onClick={() => handleJoin(lobby.id)}
-                          disabled={isJoined}
-                          className={`px-6 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300 w-full sm:w-auto backdrop-blur-md shadow-[0_4px_12px_-2px_rgba(37,99,235,0.15)] ${
-                            isJoined 
-                              ? 'bg-slate-50/50 text-slate-400 border border-slate-200/50 cursor-default shadow-none' 
-                              : 'bg-blue-600/10 text-blue-700 border border-blue-500/20 hover:bg-blue-500/20 hover:shadow-[0_8px_20px_-4px_rgba(37,99,235,0.2)] hover:-translate-y-0.5'
-                          }`}
-                        >
-                          {isJoined ? 'Joined' : 'Join Lobby'}
-                        </button>
                       </div>
                     </div>
                   );
@@ -310,6 +391,18 @@ function Home() {
 
       </div>
     </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, targetId: null, loading: false })}
+        onConfirm={handleDelete}
+        loading={confirmModal.loading}
+        title="End this event?"
+        message="This will mark the event as ended. It will be removed from the live feed."
+        confirmText="End Event"
+        confirmColor="amber"
+      />
+    </>
   );
 }
 
