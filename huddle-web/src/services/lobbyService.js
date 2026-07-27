@@ -76,5 +76,10 @@ export const lobbyService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;
+  },
+
+  deletePhoto: async (lobbyId, photoId) => {
+    const response = await api.delete(`/lobbies/${lobbyId}/photos/${photoId}`);
+    return response.data;
   }
 };

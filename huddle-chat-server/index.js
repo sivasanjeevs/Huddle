@@ -92,15 +92,35 @@ io.on('connection', (socket) => {
 
           let aiResponse = "";
           try {
+            // --- Fetch Context ---
+            const lobbyDetails = await prisma.lobby.findUnique({
+              where: { id: lobbyId },
+              select: { title: true, description: true, category: true, date: true, time: true, location: true }
+            });
+
+            const recentMessages = await prisma.lobbyMessage.findMany({
+              where: { lobbyId },
+              orderBy: { createdAt: 'desc' },
+              take: 15,
+              include: { user: { select: { name: true } } }
+            });
+            recentMessages.reverse();
+
+            const context = {
+              eventDetails: lobbyDetails,
+              chatHistory: recentMessages.map(m => `${m.user.name}: ${m.content}`)
+            };
+            // ---------------------
+
             if (query.toLowerCase().includes("turf") || query.toLowerCase().includes("turfs")) {
-              const turfs = await aiService.findTurfs(query);
+              const turfs = await aiService.findTurfs(query, context);
               if (turfs && turfs.length > 0) {
                  aiResponse = "Here are some turfs I found:\n\n" + turfs.map(t => `**${t.name}**\n📍 ${t.address || 'Address not available'}\n📞 ${t.contact || 'Contact not available'}`).join('\n\n');
               } else {
                  aiResponse = "I couldn't find any specific turfs for that location.";
               }
             } else {
-               const generalResponse = await aiService.answerEventQuestions(query);
+               const generalResponse = await aiService.answerEventQuestions(query, context);
                aiResponse = generalResponse.answer;
             }
           } catch (aiError) {

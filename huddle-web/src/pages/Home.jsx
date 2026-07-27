@@ -143,26 +143,27 @@ function Home() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* ── LEFT: All Lobbies ──────────────────────────────────────────── */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
-          <div className="p-5 border-b border-slate-100">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="text-blue-600">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polygon points="16 8 14 14 8 16 10 10 16 8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-medium text-slate-800 tracking-normal">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col h-[650px]">
+          <div className="relative p-6 border-b border-slate-100 bg-gradient-to-br from-blue-50/50 via-white to-white overflow-hidden">
+            
+            <div className="relative z-10 flex flex-col mb-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600 tracking-tight">
                   {selectedCategory ? `${selectedCategory.name} Lobbies` : 'Explore Lobbies'}
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  {selectedCategory ? `Showing events for ${selectedCategory.name.toLowerCase()}` : 'Find and join active communities'}
-                </p>
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-inner hidden sm:block">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <polygon points="16 8 14 14 8 16 10 10 16 8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
               </div>
+              <p className="text-sm text-slate-500 font-medium">
+                {selectedCategory ? `Showing events for ${selectedCategory.name.toLowerCase()}` : 'Find and join active communities'}
+              </p>
             </div>
 
-            <div className="relative group">
+            <div className="relative group z-10">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <svg className="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -173,7 +174,7 @@ function Home() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search lobbies by name, topic, or tag..."
-                className="w-full pl-11 pr-4 py-3 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 transition-all shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-50/80 hover:bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-400 transition-all shadow-sm placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -317,29 +318,30 @@ function Home() {
         </div>
 
         {/* ── RIGHT: Categories ──────────────────────────────────────────── */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
-          <div className="p-5 border-b border-slate-100">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                <div className="text-purple-600">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col h-[650px]">
+          <div className="relative p-6 border-b border-slate-100 bg-gradient-to-bl from-purple-50/50 via-white to-white overflow-hidden">
+            
+            <div className="relative z-10 flex items-center justify-between w-full h-full">
+              <div className="flex flex-col justify-center">
+                <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-700 to-fuchsia-600 tracking-tight">Categories</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">Browse by topic</p>
+              </div>
+              
+              {selectedCategory ? (
+                <button 
+                  onClick={() => setSelectedCategory(null)} 
+                  className="text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 px-4 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg focus:ring-4 focus:ring-purple-500/20"
+                >
+                  Clear Selection
+                </button>
+              ) : (
+                <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl shadow-inner">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <rect x="4" y="4" width="7" height="7" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     <rect x="13" y="4" width="7" height="16" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     <rect x="4" y="13" width="7" height="7" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
-                <div>
-                  <h2 className="text-xl font-medium text-slate-800 tracking-normal">Categories</h2>
-                  <p className="text-sm text-slate-500 mt-0.5">Browse by topic</p>
-                </div>
-              </div>
-              {selectedCategory && (
-                <button 
-                  onClick={() => setSelectedCategory(null)} 
-                  className="text-xs font-semibold text-blue-600 bg-blue-50/50 backdrop-blur-md border border-blue-100/50 hover:bg-blue-100/50 px-4 py-2 rounded-xl transition-all shadow-[0_2px_8px_-2px_rgba(37,99,235,0.1)]"
-                >
-                  Clear
-                </button>
               )}
             </div>
           </div>

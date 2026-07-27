@@ -16,17 +16,21 @@ except Exception as e:
     print(f"Warning: Failed to initialize genai client. GEMINI_API_KEY might be missing. {e}")
     client = None
 
-def _generate_json(prompt: str) -> dict:
+def _generate_json(prompt: str, use_search: bool = False) -> dict:
     if not client:
         raise HTTPException(status_code=500, detail="Gemini client not initialized")
     
     try:
+        config_opts = {
+            'response_mime_type': 'application/json'
+        }
+        if use_search:
+            config_opts['tools'] = [{'google_search': {}}]
+
         response = client.models.generate_content(
             model='gemini-3.5-flash',
             contents=prompt,
-            config={
-                'response_mime_type': 'application/json'
-            }
+            config=config_opts
         )
         return json.loads(response.text)
     except Exception as e:
@@ -71,9 +75,11 @@ class DetailsRequest(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str
+    context: dict | None = None
 
 class QueryRequest(BaseModel):
     query: str
+    context: dict | None = None
 
 @app.post("/create-event-from-prompt")
 def create_event_from_prompt(req: PromptRequest):
@@ -192,11 +198,16 @@ def generate_trip_plan(req: DetailsRequest):
 
 @app.post("/answer-event-questions")
 def answer_event_questions(req: QuestionRequest):
+    context_str = ""
+    if req.context:
+        context_str = f"\n\n--- CURRENT CONTEXT & MEMORY ---\n{json.dumps(req.context, indent=2)}\nUse this memory to answer the user's question properly."
+        
     full_prompt = f"""
       You are Huddle AI, a friendly, human-like companion in a community and event app called "Huddle".
       Users will talk to you naturally, ask for advice, or just casually chat. 
       You should understand natural human language and respond warmly, naturally, and helpfully.
       While you specialize in helping with community events, sports, and meetups, you can engage in casual conversation about anything they ask.
+      {context_str}
       
       User's input: "{req.question}"
       
@@ -204,13 +215,18 @@ def answer_event_questions(req: QuestionRequest):
       Return ONLY a JSON object with a single key "answer" containing your response.
       Example: {{ "answer": "Hello! I'm doing great. How can I help you today?" }}
     """
-    return _generate_json(full_prompt)
+    return _generate_json(full_prompt, use_search=True)
 
 @app.post("/find-turfs")
 def find_turfs(req: QueryRequest):
+    context_str = ""
+    if req.context:
+        context_str = f"\n\n--- CURRENT CONTEXT & MEMORY ---\n{json.dumps(req.context, indent=2)}\n"
+
     full_prompt = f"""
       You are a knowledgeable local guide. Find turfs (sports grounds/venues) based on the user's location query:
       "{req.query}"
+      {context_str}
       
       Return ONLY a JSON array containing objects with the following keys:
       - name (string)
@@ -219,4 +235,4 @@ def find_turfs(req: QueryRequest):
       
       If you can't find any specific turfs for the query, return an empty array [].
     """
-    return _generate_json(full_prompt)
+    return _generate_json(full_prompt, use_search=True)

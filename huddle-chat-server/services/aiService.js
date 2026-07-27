@@ -63,15 +63,15 @@ class AIService {
   /**
    * Answer questions and chat naturally with the user
    */
-  async answerEventQuestions(question) {
-    return this._postToEngine('/answer-event-questions', { question });
+  async answerEventQuestions(question, context) {
+    return this._postToEngine('/answer-event-questions', { question, context });
   }
 
   /**
    * Find turfs near a specific location
    */
-  async findTurfs(query) {
-    return this._postToEngine('/find-turfs', { query });
+  async findTurfs(query, context) {
+    return this._postToEngine('/find-turfs', { query, context });
   }
 }
 

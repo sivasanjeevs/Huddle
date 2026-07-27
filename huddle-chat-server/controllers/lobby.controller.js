@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const aiService = require('../services/aiService');
+const driveService = require('../services/driveService');
 const path = require('path');
 const fs = require('fs');
 
@@ -16,11 +17,25 @@ exports.createLobby = async (req, res) => {
       console.error('Failed to generate short description:', err);
     }
 
+    let driveFolderId = null;
+    let driveFolderLink = null;
+    try {
+      const folderRes = await driveService.createEventFolder(title);
+      if (folderRes) {
+        driveFolderId = folderRes.id;
+        driveFolderLink = folderRes.link;
+      }
+    } catch (err) {
+      console.error('Failed to create drive folder:', err);
+    }
+
     const lobby = await prisma.lobby.create({
       data: {
         title,
         description,
         shortDescription,
+        driveFolderId,
+        driveFolderLink,
         category,
         date,
         time,
@@ -39,6 +54,13 @@ exports.createLobby = async (req, res) => {
         }
       },
     });
+
+    if (driveFolderId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user && user.email) {
+        driveService.shareFolderWithUser(driveFolderId, user.email).catch(console.error);
+      }
+    }
 
     res.status(201).json(lobby);
   } catch (error) {
@@ -114,6 +136,13 @@ exports.joinLobby = async (req, res) => {
         lobbyId: id
       }
     });
+
+    if (lobby.driveFolderId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user && user.email) {
+        driveService.shareFolderWithUser(lobby.driveFolderId, user.email).catch(console.error);
+      }
+    }
 
     res.json({ message: 'Successfully joined lobby', participant });
   } catch (error) {
@@ -380,18 +409,63 @@ exports.uploadPhoto = async (req, res) => {
     const lobby = await prisma.lobby.findUnique({ where: { id: lobbyId } });
     if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
 
-    const photo = await prisma.lobbyPhoto.create({
-      data: {
-        lobbyId,
-        userId,
-        filename: req.file.filename,
-      },
-      include: {
-        user: { select: { id: true, name: true, avatar: true } }
-      }
-    });
+    let driveFileId = null;
+    let driveWebViewLink = null;
 
-    res.status(201).json(photo);
+    if (!lobby.driveFolderId) {
+      try {
+        const folderRes = await driveService.createEventFolder(lobby.title);
+        if (folderRes) {
+          lobby.driveFolderId = folderRes.id;
+          lobby.driveFolderLink = folderRes.link;
+          await prisma.lobby.update({
+            where: { id: lobbyId },
+            data: {
+              driveFolderId: folderRes.id,
+              driveFolderLink: folderRes.link
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create drive folder during photo upload:', err);
+      }
+    }
+
+    if (lobby.driveFolderId) {
+      try {
+        // Find user name for metadata
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const driveResponse = await driveService.uploadPhoto(
+          lobby.driveFolderId,
+          req.file.buffer, // Using memory buffer
+          req.file.mimetype,
+          req.file.originalname,
+          userId,
+          user ? user.name : 'Unknown User'
+        );
+        if (driveResponse) {
+          driveFileId = driveResponse.fileId;
+          driveWebViewLink = driveResponse.webViewLink;
+        } else {
+           return res.status(500).json({ error: 'Google Drive quota exceeded or configuration error. Use OAuth 2.0 or a Shared Drive.' });
+        }
+      } catch (err) {
+        console.error('Failed to upload to drive:', err);
+        return res.status(500).json({ error: 'Failed to upload photo to Drive' });
+      }
+    } else {
+       return res.status(500).json({ error: 'Drive folder not configured or creation failed' });
+    }
+
+    // Do NOT save to PostgreSQL database. Return the live drive metadata.
+    res.status(201).json({
+       id: driveFileId,
+       driveFileId: driveFileId,
+       driveWebViewLink: driveWebViewLink,
+       lobbyId: lobbyId,
+       userId: userId,
+       user: { id: userId }
+    });
   } catch (error) {
     console.error('Upload photo error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -402,17 +476,62 @@ exports.getPhotos = async (req, res) => {
   try {
     const { id: lobbyId } = req.params;
 
-    const photos = await prisma.lobbyPhoto.findMany({
-      where: { lobbyId },
-      include: {
-        user: { select: { id: true, name: true, avatar: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const lobby = await prisma.lobby.findUnique({ where: { id: lobbyId } });
+    if (!lobby || !lobby.driveFolderId) {
+      return res.json([]);
+    }
+
+    const driveFiles = await driveService.listFiles(lobby.driveFolderId);
+    
+    // Map Drive files to the structure expected by the frontend
+    const photos = driveFiles.map(file => ({
+      id: file.id,
+      lobbyId: lobbyId,
+      userId: file.appProperties?.userId || 'unknown',
+      filename: file.name,
+      driveFileId: file.id,
+      driveWebViewLink: file.webViewLink,
+      user: {
+        id: file.appProperties?.userId || 'unknown',
+        name: file.appProperties?.userName || 'Unknown User'
+      }
+    }));
 
     res.json(photos);
   } catch (error) {
     console.error('Get photos error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.deletePhoto = async (req, res) => {
+  try {
+    const { photoId } = req.params;
+    
+    // We only need to delete from Google Drive since DB is not used
+    await driveService.deletePhoto(photoId);
+
+    res.json({ message: 'Photo deleted successfully' });
+  } catch (error) {
+    console.error('Delete photo error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.streamPhoto = async (req, res) => {
+  try {
+    const { photoId } = req.params;
+    
+    // In our cloud-only approach, photoId IS the driveFileId
+    const driveStream = await driveService.getFileStream(photoId);
+    if (driveStream) {
+      driveStream.pipe(res);
+      return;
+    }
+    
+    res.status(404).json({ error: 'Photo file not found on drive' });
+  } catch (err) {
+    console.error('Stream photo error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
