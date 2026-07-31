@@ -20,12 +20,14 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const lobbyRoutes = require('./routes/lobby.routes');
 const aiRoutes = require('./routes/aiRoutes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/lobbies', lobbyRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -41,6 +43,9 @@ app.get('/health', (req, res) => {
 
 const { registerSocketHandlers } = require('./socket/handlers');
 registerSocketHandlers(io);
+
+const { startNotificationScheduler } = require('./services/notificationService');
+startNotificationScheduler();
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

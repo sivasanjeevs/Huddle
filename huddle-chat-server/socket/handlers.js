@@ -1,9 +1,25 @@
 const prisma = require('../lib/prisma');
 const aiService = require('../services/aiService');
+const jwt = require('jsonwebtoken');
+
+let ioInstance;
 
 function registerSocketHandlers(io) {
+  ioInstance = io;
+
   io.on('connection', (socket) => {
     console.log(`[Socket] User connected: ${socket.id}`);
+
+    const token = socket.handshake.auth?.token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.join(`user_${decoded.userId}`);
+        console.log(`[Socket] User ${socket.id} authenticated and joined user_${decoded.userId}`);
+      } catch (err) {
+        console.error('[Socket] Invalid token for user connection');
+      }
+    }
 
     // Ping/Pong handler
     socket.on('ping', () => {
@@ -117,4 +133,6 @@ function registerSocketHandlers(io) {
   });
 }
 
-module.exports = { registerSocketHandlers };
+const getIo = () => ioInstance;
+
+module.exports = { registerSocketHandlers, getIo };

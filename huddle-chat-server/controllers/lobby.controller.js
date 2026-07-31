@@ -10,11 +10,8 @@ exports.createLobby = async (req, res) => {
     const { title, description, category, date, time, location, maxParticipants, visibility, tags, coverImage, categoryDetails } = req.body;
 
     let shortDescription = null;
-    try {
-      const aiResponse = await aiService.generateShortDescription(title, description, category);
-      shortDescription = aiResponse.shortDescription;
-    } catch (err) {
-      console.error('Failed to generate short description:', err);
+    if (description) {
+      shortDescription = description.length > 150 ? description.substring(0, 147) + '...' : description;
     }
 
     let driveFolderId = null;
@@ -72,7 +69,7 @@ exports.createLobby = async (req, res) => {
 exports.getLobbies = async (req, res) => {
   try {
     const userId = req.user.id;
-    const lobbies = await prisma.lobby.findMany({
+    let lobbies = await prisma.lobby.findMany({
       where: { active: true },
       include: {
         creator: { select: { id: true, name: true, avatar: true } },
@@ -81,6 +78,27 @@ exports.getLobbies = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    const now = new Date();
+    const expiredIds = [];
+    lobbies = lobbies.filter(lobby => {
+      if (lobby.date && lobby.time) {
+        const lobbyDateTime = new Date(`${lobby.date}T${lobby.time}`);
+        if (lobbyDateTime < now) {
+          expiredIds.push(lobby.id);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (expiredIds.length > 0) {
+      await prisma.lobby.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { active: false }
+      });
+    }
+
     res.json(lobbies);
   } catch (error) {
     console.error('Get lobbies error:', error);
@@ -91,7 +109,7 @@ exports.getLobbies = async (req, res) => {
 exports.getMyLobbies = async (req, res) => {
   try {
     const userId = req.user.id;
-    const lobbies = await prisma.lobby.findMany({
+    let lobbies = await prisma.lobby.findMany({
       where: {
         participants: {
           some: {
@@ -105,6 +123,26 @@ exports.getMyLobbies = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    const now = new Date();
+    const expiredIds = [];
+    lobbies.forEach(lobby => {
+      if (lobby.active && lobby.date && lobby.time) {
+        const lobbyDateTime = new Date(`${lobby.date}T${lobby.time}`);
+        if (lobbyDateTime < now) {
+          expiredIds.push(lobby.id);
+          lobby.active = false;
+        }
+      }
+    });
+
+    if (expiredIds.length > 0) {
+      await prisma.lobby.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { active: false }
+      });
+    }
+
     res.json(lobbies);
   } catch (error) {
     console.error('Get my lobbies error:', error);
@@ -224,9 +262,12 @@ exports.updateLobby = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { title, description, category, active } = req.body;
+    const { title, description, category, active, location, date, time, maxParticipants, visibility, tags } = req.body;
 
-    const lobby = await prisma.lobby.findUnique({ where: { id } });
+    const lobby = await prisma.lobby.findUnique({ 
+      where: { id },
+      include: { participants: { select: { userId: true } } }
+    });
     if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
 
     if (lobby.creatorId !== userId) {
@@ -240,8 +281,39 @@ exports.updateLobby = async (req, res) => {
         ...(description !== undefined && { description }),
         ...(category !== undefined && { category }),
         ...(active !== undefined && { active }),
+        ...(location !== undefined && { location }),
+        ...(date !== undefined && { date }),
+        ...(time !== undefined && { time }),
+        ...(maxParticipants !== undefined && { maxParticipants: maxParticipants ? parseInt(maxParticipants) : null }),
+        ...(visibility !== undefined && { visibility }),
+        ...(tags !== undefined && { tags }),
       }
     });
+
+    // Notify participants about the update
+    const notificationData = lobby.participants
+      .filter(p => p.userId !== userId)
+      .map(p => ({
+        userId: p.userId,
+        message: `Lobby "${updatedLobby.title}" was updated by the host.`,
+        type: 'update'
+      }));
+
+    if (notificationData.length > 0) {
+      await prisma.notification.createMany({ data: notificationData });
+      
+      const { getIo } = require('../socket/handlers');
+      const io = getIo();
+      if (io) {
+        for (const data of notificationData) {
+          io.to(`user_${data.userId}`).emit('new_notification', {
+            message: data.message,
+            type: data.type,
+            createdAt: new Date()
+          });
+        }
+      }
+    }
 
     res.json({ message: 'Lobby updated successfully', lobby: updatedLobby });
   } catch (error) {

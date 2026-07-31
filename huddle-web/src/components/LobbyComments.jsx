@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lobbyService } from '../services/lobbyService';
 import useAuthStore from '../store/authStore';
+import { getDefaultAvatar } from '../utils/avatar';
 
 const timeAgo = (dateString) => {
   if (!dateString) return '';
@@ -95,7 +96,7 @@ function LobbyComments({ lobbyId }) {
             <div key={comment.id} className="text-sm relative mb-4">
               <div className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <img src={comment.user.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${comment.userId}`} alt={comment.user.name} className="w-8 h-8 rounded-full bg-slate-200 z-10 shadow-sm" />
+                  <img src={comment.user.avatar || getDefaultAvatar(comment.userId)} alt={comment.user.name} className="w-8 h-8 rounded-full bg-slate-200 z-10 shadow-sm" />
                   {comment.replies && comment.replies.length > 0 && (
                     <div className="w-0.5 bg-slate-200/80 flex-1 my-1 rounded-full"></div>
                   )}
@@ -150,7 +151,7 @@ function LobbyComments({ lobbyId }) {
                     <div className="mt-2 space-y-4">
                       {comment.replies.map(reply => (
                         <div key={reply.id} className="flex gap-3">
-                          <img src={reply.user.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${reply.userId}`} alt={reply.user.name} className="w-6 h-6 rounded-full bg-slate-200 shadow-sm" />
+                          <img src={reply.user.avatar || getDefaultAvatar(reply.userId)} alt={reply.user.name} className="w-6 h-6 rounded-full bg-slate-200 shadow-sm" />
                           <div className="flex-1">
                             {/* Header */}
                             <div className="flex items-center gap-2 mb-0.5">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { lobbyService } from '../services/lobbyService';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { getDefaultAvatar } from '../utils/avatar';
 import ConfirmModal from '../components/ConfirmModal';
 
 function MyLobbies() {
@@ -39,16 +40,6 @@ function MyLobbies() {
     }
   };
 
-  const handleRepostLobby = async (lobbyId) => {
-    try {
-      await lobbyService.updateLobby(lobbyId, { active: true });
-      setLobbies(lobbies.map(l => l.id === lobbyId ? { ...l, active: true } : l));
-    } catch (error) {
-      console.error('Failed to repost lobby', error);
-      alert('Failed to repost the event.');
-    }
-  };
-
   const handleHardDeleteLobby = async () => {
     const lobbyId = confirmModal.targetId;
     setConfirmModal(m => ({ ...m, loading: true }));
@@ -72,7 +63,11 @@ function MyLobbies() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">My Lobbies</h1>
-            <p className="text-slate-500 mt-1">Lobbies you have joined or created</p>
+            {!loading && (
+              <p className="text-slate-500 mt-1">
+                Lobbies you have joined ({lobbies.filter(l => l.creatorId !== user?.id).length}) or created ({lobbies.filter(l => l.creatorId === user?.id).length})
+              </p>
+            )}
           </div>
           <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,8 +108,8 @@ function MyLobbies() {
                     <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100">
                       {lobby.category?.replace(/[^a-zA-Z ]/g, "").trim()}
                     </span>
-                    <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border ${lobby.active ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                      {lobby.active ? 'Live' : 'Inactive'}
+                    <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border ${lobby.active ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                      {lobby.active ? 'Live' : 'Completed'}
                     </span>
                   </div>
                   <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
@@ -143,13 +138,13 @@ function MyLobbies() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <img 
-                        src={lobby.creator?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${lobby.creatorId}`} 
+                        src={lobby.creator?.avatar || getDefaultAvatar(lobby.creatorId)} 
                         alt="Host" 
                         className="w-8 h-8 rounded-full border border-slate-200"
                       />
                       <div className="text-xs">
                         <p className="text-slate-400 font-medium">Hosted by</p>
-                        <p className="text-slate-700 font-semibold">{lobby.creator?.name || 'User'}</p>
+                        <p className="text-slate-700 font-semibold">{isCreator ? 'You' : (lobby.creator?.name || 'User')}</p>
                       </div>
                     </div>
                     
@@ -163,19 +158,12 @@ function MyLobbies() {
                   
                   {isCreator && (
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-50">
-                      {lobby.active ? (
+                      {lobby.active && (
                         <button
                           onClick={() => setConfirmModal({ open: true, type: 'end', targetId: lobby.id, loading: false })}
                           className="px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded transition-colors"
                         >
                           End Event
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleRepostLobby(lobby.id)}
-                          className="px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
-                        >
-                          Edit & Repost
                         </button>
                       )}
                       <button

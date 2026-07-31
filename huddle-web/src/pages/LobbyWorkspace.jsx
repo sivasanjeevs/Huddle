@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { getDefaultAvatar } from '../utils/avatar';
 import { lobbyService } from '../services/lobbyService';
 import useAuthStore from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
+import EmojiPicker from 'emoji-picker-react';
 
 // Helper to get the base API URL (without /api suffix) for serving uploads
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace('/api', '');
@@ -17,6 +19,9 @@ function LobbyWorkspace() {
   const [error, setError] = useState('');
   const [photos, setPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({ open: false, type: null, loading: false });
   const { user: currentUser } = useAuthStore();
@@ -86,6 +91,11 @@ function LobbyWorkspace() {
       content: newMessage.trim()
     });
     setNewMessage('');
+    setShowEmojiPicker(false);
+  };
+
+  const onEmojiClick = (emojiObject) => {
+    setNewMessage(prevInput => prevInput + emojiObject.emoji);
   };
 
   const isJoined = lobby?.participants?.some(p => p.userId === currentUser?.id);
@@ -137,6 +147,30 @@ function LobbyWorkspace() {
       const msg = error?.response?.data?.error || 'Failed to delete the event.';
       alert(`Error: ${msg}`);
     }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await lobbyService.updateLobby(id, editFormData);
+      setLobby(response.lobby);
+      setIsEditingEvent(false);
+    } catch (error) {
+      alert(error?.response?.data?.error || 'Failed to update event.');
+    }
+  };
+
+  const openEditModal = () => {
+    setEditFormData({
+      title: lobby.title,
+      description: lobby.description,
+      location: lobby.location,
+      date: lobby.date,
+      time: lobby.time,
+      maxParticipants: lobby.maxParticipants || '',
+      visibility: lobby.visibility,
+    });
+    setIsEditingEvent(true);
   };
 
   const handlePhotoUpload = async (e) => {
@@ -272,7 +306,7 @@ function LobbyWorkspace() {
               {/* Host info */}
               <div className="flex items-center gap-2.5 pt-3">
                 <img
-                  src={lobby.creator?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${lobby.creatorId}`}
+                  src={lobby.creator?.avatar || getDefaultAvatar(lobby.creatorId)}
                   alt={lobby.creator?.name}
                   className="w-8 h-8 rounded-full border border-slate-200"
                 />
@@ -286,6 +320,9 @@ function LobbyWorkspace() {
               <div className="flex flex-wrap items-center gap-2 pt-2">
                 {isHost ? (
                   <>
+                    <button onClick={openEditModal} className="flex-1 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100">
+                      Edit Event
+                    </button>
                     {lobby.active && (
                       <button onClick={() => setConfirmModal({ open: true, type: 'end', loading: false })} className="flex-1 py-2 text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100">
                         End Event
@@ -321,7 +358,7 @@ function LobbyWorkspace() {
                   <div key={p.user.id} className="flex items-center gap-2.5 p-2 hover:bg-slate-50 rounded-xl transition-colors group">
                     <div className="relative shrink-0">
                       <img
-                        src={p.user.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${p.user.id}`}
+                        src={p.user.avatar || getDefaultAvatar(p.user.id)}
                         alt={p.user.name}
                         className="w-9 h-9 rounded-full border-2 border-slate-200 group-hover:border-blue-300 transition-colors"
                       />
@@ -515,7 +552,7 @@ function LobbyWorkspace() {
                       <div key={msg.id || index} className={`flex gap-2 max-w-[90%] ${isMe ? 'ml-auto flex-row-reverse' : ''}`}>
                         {!isMe && (
                           <img
-                            src={msg.user?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${msg.userId}`}
+                            src={msg.user?.avatar || getDefaultAvatar(msg.userId)}
                             alt={msg.user?.name}
                             className="w-7 h-7 rounded-full border border-slate-200 shrink-0 mt-1"
                           />
@@ -533,19 +570,31 @@ function LobbyWorkspace() {
               </div>
 
               {/* Input */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-white/50 rounded-b-[2rem] border-t border-white/50">
-                <div className="relative flex items-center">
+              <form onSubmit={handleSendMessage} className="p-4 bg-white/50 rounded-b-[2rem] border-t border-white/50 relative">
+                {showEmojiPicker && (
+                  <div className="absolute bottom-20 left-4 z-50">
+                    <EmojiPicker onEmojiClick={onEmojiClick} height={350} width={300} />
+                  </div>
+                )}
+                <div className="relative flex items-center bg-white/80 border border-white/80 rounded-2xl shadow-sm transition-all focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-400">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="pl-4 pr-2 py-3.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </button>
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="w-full pl-5 pr-12 py-3.5 bg-white/80 border border-white/80 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 transition-all shadow-sm"
+                    className="w-full px-2 py-3.5 bg-transparent text-sm focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="absolute right-2 p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-md"
+                    className="mr-2 p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-md"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                   </button>
@@ -581,6 +630,61 @@ function LobbyWorkspace() {
         confirmText="Delete Forever"
         confirmColor="red"
       />
+
+      {/* Edit Event Modal */}
+      {isEditingEvent && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in relative border border-slate-100 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-xl text-slate-800">Edit Event</h3>
+              <button onClick={() => setIsEditingEvent(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Title</label>
+                <input type="text" value={editFormData.title} onChange={e => setEditFormData({...editFormData, title: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" required />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Description</label>
+                <textarea value={editFormData.description} onChange={e => setEditFormData({...editFormData, description: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" rows="3" required></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Location</label>
+                <input type="text" value={editFormData.location} onChange={e => setEditFormData({...editFormData, location: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Date</label>
+                  <input type="date" value={editFormData.date} onChange={e => setEditFormData({...editFormData, date: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Time</label>
+                  <input type="time" value={editFormData.time} onChange={e => setEditFormData({...editFormData, time: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Max Participants</label>
+                  <input type="number" value={editFormData.maxParticipants} onChange={e => setEditFormData({...editFormData, maxParticipants: e.target.value})} placeholder="Unlimited if empty" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Visibility</label>
+                  <select value={editFormData.visibility} onChange={e => setEditFormData({...editFormData, visibility: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-400">
+                    <option value="Public">Public</option>
+                    <option value="Private">Private</option>
+                  </select>
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                <button type="button" onClick={() => setIsEditingEvent(false)} className="px-5 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-colors shadow-[0_4px_12px_rgba(37,99,235,0.3)]">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

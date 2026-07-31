@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
-import { Camera, Save, MapPin, Sparkles, Activity, Plus, Check, Briefcase, Terminal, Link as LinkIcon, Heart, X, ChevronRight, UserPlus, Star, Map, MessageCircle, Calendar, Search, Compass, Globe } from 'lucide-react';
+import { getDefaultAvatar } from '../utils/avatar';
+import { Camera, Save, MapPin, Sparkles, Activity, Check, Briefcase, Terminal, Link as LinkIcon, Heart, X, ChevronRight, UserPlus, Star, Map, MessageCircle, Calendar, Search, Globe, Users } from 'lucide-react';
+import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
-  const { user, updateProfile } = useAuthStore();
+  const { user, updateProfile, fetchProfile } = useAuthStore();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -16,7 +20,6 @@ const Profile = () => {
 
   // Arrays
   const [interests, setInterests] = useState(user?.interests || []);
-  const [favoriteCategories, setFavoriteCategories] = useState(user?.favoriteCategories || []);
   const [lookingFor, setLookingFor] = useState(user?.lookingFor || []);
 
   // JSON preferences
@@ -35,7 +38,34 @@ const Profile = () => {
   // Add custom interest
   const [newInterest, setNewInterest] = useState('');
 
-  const displayAvatar = avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${user?.id || 'default'}`;
+  // Modals state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'hosted', 'followers', 'following'
+  
+  // AI Suggestions
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+
+  useEffect(() => {
+    fetchProfile();
+    // Fetch global lobbies to filter for AI suggestions
+    const fetchSuggestions = async () => {
+      try {
+        const res = await api.get('/lobbies');
+        const allLobbies = res.data;
+        const matched = allLobbies.filter(lobby => 
+          interests.some(interest => lobby.category.toLowerCase().includes(interest.toLowerCase()) || 
+                                     lobby.title.toLowerCase().includes(interest.toLowerCase()))
+        );
+        const suggestions = matched.length >= 3 ? matched : [...matched, ...allLobbies.filter(l => !matched.includes(l))].slice(0, 3);
+        setAiSuggestions(suggestions);
+      } catch (err) {
+        console.error("Failed to fetch suggestions", err);
+      }
+    };
+    fetchSuggestions();
+  }, [interests]);
+
+  const displayAvatar = avatar || getDefaultAvatar(user?.id);
   const username = `@${(name || 'user').toLowerCase().replace(/\s+/g, '')}`;
 
   const toggleArrayItem = (setter, array, item) => {
@@ -69,7 +99,6 @@ const Profile = () => {
         bio, 
         location,
         interests,
-        favoriteCategories,
         lookingFor,
         preferences: { languages, availability, travelRadius },
         socialLinks: { instagram, github, linkedin, website }
@@ -85,7 +114,6 @@ const Profile = () => {
 
   // Predefined lists
   const suggestedInterests = ["Football", "Cricket", "AI", "Web Development", "Gaming", "Photography", "Music", "Movies", "Travel", "Startups", "Books", "Fitness", "Robotics", "Open Source"];
-  const suggestedCategories = ["Sports", "Technology", "Gaming", "Music", "Study", "Travel", "Community", "Business", "Design", "Photography", "Food"];
   const suggestedLookingFor = ["Study Partners", "Football Team", "Gaming Squad", "Travel Buddies", "Hackathon Team", "Startup Co-founders", "Movie Friends", "Gym Partners", "Photography Walks"];
   const suggestedLanguages = ["English", "Spanish", "French", "German", "Hindi", "Mandarin", "Japanese", "Arabic"];
   const suggestedAvailability = ["Weekdays", "Weekends", "Morning", "Evening"];
@@ -109,6 +137,19 @@ const Profile = () => {
       </button>
     );
   };
+
+  const getRecentActivities = () => {
+    let activities = [];
+    if (user?.createdLobbies) {
+      activities = [...activities, ...user.createdLobbies.map(l => ({ type: 'hosted', data: l, date: new Date(l.createdAt || Date.now()) }))];
+    }
+    if (user?.participatingLobbies) {
+      activities = [...activities, ...user.participatingLobbies.map(pl => ({ type: 'joined', data: pl.lobby, date: new Date(pl.joinedAt || Date.now()) }))];
+    }
+    return activities.sort((a, b) => b.date - a.date).slice(0, 5);
+  };
+
+  const recentActivities = getRecentActivities();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
@@ -215,18 +256,158 @@ const Profile = () => {
 
                   {/* Quick Stats */}
                   <div className="flex gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm shrink-0">
-                    <div className="text-center px-4 border-r border-slate-200 last:border-0">
-                      <span className="block text-2xl font-bold text-slate-800">12</span>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined</span>
-                    </div>
-                    <div className="text-center px-4 border-r border-slate-200 last:border-0">
-                      <span className="block text-2xl font-bold text-slate-800">4</span>
+                    <div 
+                      className="text-center px-4 border-r border-slate-200 last:border-0 cursor-pointer hover:bg-slate-200 rounded-lg transition-colors"
+                      onClick={() => { setModalType('hosted'); setModalOpen(true); }}
+                    >
+                      <span className="block text-2xl font-bold text-slate-800">{user?.createdLobbies?.length || 0}</span>
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hosted</span>
                     </div>
-                    <div className="text-center px-4">
-                      <span className="block text-2xl font-bold text-slate-800">89</span>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Friends</span>
+                    <div 
+                      className="text-center px-4 border-r border-slate-200 last:border-0 cursor-pointer hover:bg-slate-200 rounded-lg transition-colors"
+                      onClick={() => { setModalType('followers'); setModalOpen(true); }}
+                    >
+                      <span className="block text-2xl font-bold text-slate-800">{user?.followers?.length || 0}</span>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Followers</span>
                     </div>
+                    <div 
+                      className="text-center px-4 cursor-pointer hover:bg-slate-200 rounded-lg transition-colors"
+                      onClick={() => { setModalType('following'); setModalOpen(true); }}
+                    >
+                      <span className="block text-2xl font-bold text-slate-800">{user?.following?.length || 0}</span>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Following</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PREFERENCES & SOCIAL LINKS (Moved here) */}
+                <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Preferences */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <Map className="w-4 h-4 text-orange-500" /> 
+                      Preferences
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Languages</label>
+                        <div className="flex flex-wrap gap-2">
+                          {isEditing ? suggestedLanguages.map(item => 
+                            renderChip(item, languages.includes(item), () => toggleArrayItem(setLanguages, languages, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
+                          ) : languages.map(item => 
+                            renderChip(item, true, () => {}, "bg-slate-50 text-slate-600 border-slate-200 cursor-default")
+                          )}
+                          {!isEditing && languages.length === 0 && <span className="text-sm text-slate-400">Not specified</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Availability</label>
+                        <div className="flex flex-wrap gap-2">
+                          {isEditing ? suggestedAvailability.map(item => 
+                            renderChip(item, availability.includes(item), () => toggleArrayItem(setAvailability, availability, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
+                          ) : availability.map(item => 
+                            renderChip(item, true, () => {}, "bg-slate-50 text-slate-600 border-slate-200 cursor-default")
+                          )}
+                          {!isEditing && availability.length === 0 && <span className="text-sm text-slate-400">Not specified</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Travel Radius</label>
+                        <div className="flex flex-wrap gap-2">
+                          {isEditing ? travelRadii.map(item => 
+                            renderChip(item, travelRadius === item, () => setTravelRadius(item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
+                          ) : (
+                            travelRadius ? renderChip(travelRadius, true, () => {}, "bg-slate-50 text-slate-600 border-slate-200 cursor-default") : <span className="text-sm text-slate-400">Not specified</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Social Links */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-blue-500" /> 
+                      Social Links
+                    </h3>
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Camera className="h-4 w-4 text-slate-400 group-focus-within:text-pink-500 transition-colors" />
+                          </div>
+                          <input 
+                            type="text" 
+                            value={instagram}
+                            onChange={(e) => setInstagram(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 focus:bg-white transition-all"
+                            placeholder="Instagram URL"
+                          />
+                        </div>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Terminal className="h-4 w-4 text-slate-400 group-focus-within:text-slate-800 transition-colors" />
+                          </div>
+                          <input 
+                            type="text" 
+                            value={github}
+                            onChange={(e) => setGithub(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 focus:bg-white transition-all"
+                            placeholder="GitHub URL"
+                          />
+                        </div>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Briefcase className="h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                          </div>
+                          <input 
+                            type="text" 
+                            value={linkedin}
+                            onChange={(e) => setLinkedin(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+                            placeholder="LinkedIn URL"
+                          />
+                        </div>
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Globe className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                          </div>
+                          <input 
+                            type="text" 
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white transition-all"
+                            placeholder="Personal Website URL"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-4">
+                        {instagram && (
+                          <a href={instagram} target="_blank" rel="noreferrer" className="flex items-center justify-center w-12 h-12 rounded-xl bg-pink-50 text-pink-500 hover:bg-pink-100 transition-colors">
+                            <Camera className="w-6 h-6" />
+                          </a>
+                        )}
+                        {github && (
+                          <a href={github} target="_blank" rel="noreferrer" className="flex items-center justify-center w-12 h-12 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+                            <Terminal className="w-6 h-6" />
+                          </a>
+                        )}
+                        {linkedin && (
+                          <a href={linkedin} target="_blank" rel="noreferrer" className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                            <Briefcase className="w-6 h-6" />
+                          </a>
+                        )}
+                        {website && (
+                          <a href={website} target="_blank" rel="noreferrer" className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                            <Globe className="w-6 h-6" />
+                          </a>
+                        )}
+                        {!instagram && !github && !linkedin && !website && (
+                          <span className="text-sm text-slate-400">No social links added</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -243,15 +424,15 @@ const Profile = () => {
           {/* INTERESTS & LOOKING FOR */}
           <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 border border-slate-100">
             <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-              <Heart className="w-5 h-5 text-blue-500" /> 
+              <Heart className="w-6 h-6 text-pink-500 p-1 bg-pink-50 rounded-lg" /> 
               Interests & Hobbies
             </h2>
             <div className="flex flex-wrap gap-2.5">
               {suggestedInterests.map(item => 
-                renderChip(item, interests.includes(item), () => toggleArrayItem(setInterests, interests, item))
+                renderChip(item, interests.includes(item), () => toggleArrayItem(setInterests, interests, item), "bg-pink-50 text-pink-700 border-pink-100 hover:bg-pink-100")
               )}
               {interests.filter(i => !suggestedInterests.includes(i)).map(item => 
-                renderChip(item, true, () => toggleArrayItem(setInterests, interests, item))
+                renderChip(item, true, () => toggleArrayItem(setInterests, interests, item), "bg-pink-50 text-pink-700 border-pink-100 hover:bg-pink-100")
               )}
               {isEditing && (
                 <div className="flex items-center gap-2 px-1">
@@ -270,129 +451,13 @@ const Profile = () => {
             <div className="h-px bg-slate-100 w-full my-8"></div>
 
             <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-              <Search className="w-5 h-5 text-blue-500" /> 
+              <Search className="w-6 h-6 text-blue-500 p-1 bg-blue-50 rounded-lg" /> 
               I'm Looking For
             </h2>
             <div className="flex flex-wrap gap-2.5">
               {suggestedLookingFor.map(item => 
                 renderChip(item, lookingFor.includes(item), () => toggleArrayItem(setLookingFor, lookingFor, item))
               )}
-            </div>
-
-            <div className="h-px bg-slate-100 w-full my-8"></div>
-
-            <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-              <Compass className="w-5 h-5 text-blue-500" /> 
-              Favorite Categories
-            </h2>
-            <div className="flex flex-wrap gap-2.5">
-              {suggestedCategories.map(item => 
-                renderChip(item, favoriteCategories.includes(item), () => toggleArrayItem(setFavoriteCategories, favoriteCategories, item))
-              )}
-            </div>
-          </div>
-
-          {/* PREFERENCES & SOCIAL LINKS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 border border-slate-100 h-full">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <Map className="w-5 h-5 text-orange-500" /> 
-                Preferences
-              </h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Languages</label>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedLanguages.map(item => 
-                      renderChip(item, languages.includes(item), () => toggleArrayItem(setLanguages, languages, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Availability</label>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedAvailability.map(item => 
-                      renderChip(item, availability.includes(item), () => toggleArrayItem(setAvailability, availability, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Travel Radius</label>
-                  <div className="flex flex-wrap gap-2">
-                    {travelRadii.map(item => 
-                      renderChip(item, travelRadius === item, () => setTravelRadius(item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 border border-slate-100 h-full">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <LinkIcon className="w-5 h-5 text-blue-500" /> 
-                Social Links
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Camera className="h-5 w-5 text-slate-400 group-focus-within:text-pink-500 transition-colors" />
-                  </div>
-                  <input 
-                    type="text" 
-                    value={instagram}
-                    onChange={(e) => setInstagram(e.target.value)}
-                    disabled={!isEditing}
-                    className="block w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-400 focus:bg-white disabled:opacity-80 transition-all"
-                    placeholder="Instagram handle"
-                  />
-                </div>
-                
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Terminal className="h-5 w-5 text-slate-400 group-focus-within:text-slate-800 transition-colors" />
-                  </div>
-                  <input 
-                    type="text" 
-                    value={github}
-                    onChange={(e) => setGithub(e.target.value)}
-                    disabled={!isEditing}
-                    className="block w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 focus:bg-white disabled:opacity-80 transition-all"
-                    placeholder="GitHub username"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Briefcase className="h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-                  </div>
-                  <input 
-                    type="text" 
-                    value={linkedin}
-                    onChange={(e) => setLinkedin(e.target.value)}
-                    disabled={!isEditing}
-                    className="block w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white disabled:opacity-80 transition-all"
-                    placeholder="LinkedIn profile URL"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Globe className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                  </div>
-                  <input 
-                    type="text" 
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    disabled={!isEditing}
-                    className="block w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:bg-white disabled:opacity-80 transition-all"
-                    placeholder="Personal Website URL"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -414,20 +479,18 @@ const Profile = () => {
             </div>
 
             <div className="space-y-4 relative z-10">
-              <div className="bg-white rounded-2xl p-4 border border-blue-50 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer group">
-                <h4 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Football Match tomorrow</h4>
-                <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5"/> Anna Nagar Ground • 2km</p>
-              </div>
-              
-              <div className="bg-white rounded-2xl p-4 border border-blue-50 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer group">
-                <h4 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">AI Meetup this weekend</h4>
-                <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> Saturday, 10 AM</p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-blue-50 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer group">
-                <h4 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">Photography Walk nearby</h4>
-                <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5"/> Marina Beach • 5km</p>
-              </div>
+              {aiSuggestions.length > 0 ? aiSuggestions.map(lobby => (
+                <div 
+                  key={lobby.id} 
+                  onClick={() => navigate(`/lobby/${lobby.id}`)}
+                  className="bg-white rounded-2xl p-4 border border-blue-50 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <h4 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1">{lobby.title}</h4>
+                  <p className="text-sm text-slate-500 mt-2 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> {lobby.date} at {lobby.time}</p>
+                </div>
+              )) : (
+                <p className="text-sm text-slate-500 italic">No suggestions right now.</p>
+              )}
             </div>
           </div>
 
@@ -439,50 +502,26 @@ const Profile = () => {
             </h2>
             
             <div className="space-y-6">
-              <div className="flex gap-4">
-                <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100/50 shadow-sm">
-                  <Star className="w-6 h-6 fill-blue-500/20" />
+              {recentActivities.length > 0 ? recentActivities.map((activity, idx) => (
+                <div key={idx} className="flex gap-4">
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100/50 shadow-sm">
+                    {activity.type === 'hosted' ? <Star className="w-6 h-6 fill-blue-500/20" /> : <UserPlus className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">{activity.type === 'hosted' ? 'Hosted' : 'Joined'} {activity.data?.title || 'an activity'}</h4>
+                    <p className="text-sm text-slate-500">{activity.data?.category}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Hosted 15 Activities</h4>
-                  <p className="text-sm text-slate-500">Achievement Unlocked!</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100/50 shadow-sm">
-                  <UserPlus className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Joined Football Match</h4>
-                  <p className="text-sm text-slate-500">Yesterday at 6:00 PM</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100/50 shadow-sm">
-                  <MessageCircle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Gaming Night</h4>
-                  <p className="text-sm text-slate-500">3 days ago</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-4">
-                <div className="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100/50 shadow-sm">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Photography Walk</h4>
-                  <p className="text-sm text-slate-500">Last week</p>
-                </div>
-              </div>
+              )) : (
+                <p className="text-sm text-slate-500 italic">No recent activities.</p>
+              )}
             </div>
             
-            <button className="w-full mt-6 py-3 px-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-slate-200/50">
-              View All Activity <ChevronRight className="w-4 h-4" />
-            </button>
+            {recentActivities.length > 0 && (
+              <button className="w-full mt-6 py-3 px-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold transition-colors flex items-center justify-center gap-2 text-sm border border-slate-200/50">
+                View All Activity <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
         </div>
@@ -514,6 +553,68 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* POPUP MODAL FOR STATS */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in relative border border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-xl text-slate-800 capitalize">{modalType}</h3>
+              <button onClick={() => setModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-2 max-h-[60vh] overflow-y-auto">
+              {modalType === 'hosted' && (
+                <div className="space-y-1 p-2">
+                  {user?.createdLobbies?.length > 0 ? user.createdLobbies.map(lobby => (
+                    <div key={lobby.id} onClick={() => { setModalOpen(false); navigate(`/lobby/${lobby.id}`); }} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                      <div className="w-12 h-12 bg-blue-50 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-blue-500 font-bold border border-blue-100">
+                        {lobby.coverImage ? <img src={lobby.coverImage} className="w-full h-full object-cover" alt="" /> : lobby.title.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 line-clamp-1">{lobby.title}</h4>
+                        <p className="text-sm text-slate-500">{lobby.date}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-slate-500 text-center p-6 italic">No hosted events yet.</p>
+                  )}
+                </div>
+              )}
+              {modalType === 'followers' && (
+                <div className="space-y-1 p-2">
+                  {user?.followers?.length > 0 ? user.followers.map(f => (
+                    <div key={f.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                      <img src={f.avatar || getDefaultAvatar(f.id)} className="w-12 h-12 rounded-full object-cover border border-slate-200" alt={f.name} />
+                      <div>
+                        <h4 className="font-bold text-slate-800">{f.name}</h4>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-slate-500 text-center p-6 italic">No followers yet.</p>
+                  )}
+                </div>
+              )}
+              {modalType === 'following' && (
+                <div className="space-y-1 p-2">
+                  {user?.following?.length > 0 ? user.following.map(f => (
+                    <div key={f.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
+                      <img src={f.avatar || getDefaultAvatar(f.id)} className="w-12 h-12 rounded-full object-cover border border-slate-200" alt={f.name} />
+                      <div>
+                        <h4 className="font-bold text-slate-800">{f.name}</h4>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-slate-500 text-center p-6 italic">Not following anyone yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

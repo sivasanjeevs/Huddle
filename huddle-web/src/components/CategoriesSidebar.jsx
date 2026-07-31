@@ -3,7 +3,7 @@ import { GROUPED_CATEGORIES } from '../constants/categories';
 
 export default function CategoriesSidebar({ selectedCategory, setSelectedCategory }) {
   return (
-    <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col h-[650px]">
+    <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
       <div className="relative p-6 border-b border-slate-100 bg-gradient-to-bl from-purple-50/50 via-white to-white overflow-hidden">
         
         <div className="relative z-10 flex items-center justify-between w-full h-full">
@@ -31,7 +31,7 @@ export default function CategoriesSidebar({ selectedCategory, setSelectedCategor
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+      <div className="flex-1 p-4 space-y-4 bg-slate-50/50">
         {GROUPED_CATEGORIES.map((category) => {
           const isSelected = selectedCategory?.id === category.id;
           return (

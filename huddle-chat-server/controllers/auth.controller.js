@@ -162,14 +162,14 @@ exports.googleLogin = async (req, res) => {
           password: 'oauth_dummy_password', // Users logging in via google shouldn't use this
           name,
           googleId,
-          avatar,
+          // avatar, // Ignored to use local defaults
         },
       });
     } else if (!user.googleId) {
       // If user exists but no googleId is linked, link it
       user = await prisma.user.update({
         where: { email },
-        data: { googleId, avatar: user.avatar || avatar },
+        data: { googleId },
       });
     }
 

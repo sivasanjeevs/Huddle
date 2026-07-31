@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import useAuthStore from './store/authStore';
+import { getDefaultAvatar } from './utils/avatar';
 
 // Pages
 import Home from './pages/Home';
+import api from './services/api';
+import { io } from 'socket.io-client';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
@@ -17,13 +20,53 @@ import LobbyWorkspace from './pages/LobbyWorkspace';
 const Layout = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const dropdownRef = useRef(null);
+  const notifDropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      api.get('/notifications').then(res => setNotifications(res.data)).catch(console.error);
+
+      const token = localStorage.getItem('huddle_token');
+      const socketUrl = import.meta.env.VITE_API_URL
+        ? import.meta.env.VITE_API_URL.replace('/api', '')
+        : 'http://localhost:3001';
+
+      const newSocket = io(socketUrl, { auth: { token } });
+      
+      newSocket.on('new_notification', (notification) => {
+        setNotifications(prev => [notification, ...prev]);
+        // Also play a sound or toast if needed
+      });
+
+      return () => newSocket.disconnect();
+    }
+  }, [isAuthenticated]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleNotificationsClick = async () => {
+    setNotificationsOpen(prev => !prev);
+    if (!notificationsOpen && unreadCount > 0) {
+      try {
+        await api.put('/notifications/read');
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setProfileOpen(false);
+      }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setNotificationsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -65,6 +108,42 @@ const Layout = ({ children }) => {
                 Create Lobby
               </Link>
 
+              {/* Notification Bell */}
+              <div className="relative" ref={notifDropdownRef}>
+                <button
+                  onClick={handleNotificationsClick}
+                  className="relative p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors focus:outline-none"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-fade-in z-50">
+                    <div className="px-4 py-2 border-b border-slate-100 font-bold text-slate-700">
+                      Notifications
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div key={n.id} className={`p-4 border-b border-slate-50 text-sm ${!n.read ? 'bg-blue-50/50 font-medium' : 'text-slate-600'}`}>
+                            <p>{n.message}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-slate-500">No notifications</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Profile dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -73,7 +152,7 @@ const Layout = ({ children }) => {
                   className="flex items-center gap-2 group focus:outline-none"
                 >
                   <img
-                    src={user?.avatar || `https://api.dicebear.com/9.x/glass/svg?seed=${user?.id || 'default'}`}
+                    src={user?.avatar || getDefaultAvatar(user?.id)}
                     alt="avatar"
                     className="w-9 h-9 rounded-full border-2 border-slate-200 group-hover:border-blue-400 transition-colors bg-white shadow-sm"
                   />

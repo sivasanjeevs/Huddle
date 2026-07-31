@@ -83,6 +83,17 @@ const useAuthStore = create((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  fetchProfile: async () => {
+    if (!get().isAuthenticated) return;
+    try {
+      const response = await api.get('/users/profile');
+      localStorage.setItem('huddle_user', JSON.stringify(response.data));
+      set({ user: response.data });
+    } catch (error) {
+      console.error('Failed to fetch latest profile:', error);
+    }
   }
 }));
 

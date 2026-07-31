@@ -38,6 +38,9 @@ model User {
   likes            LobbyLike[]
   comments         LobbyComment[]
   photos           LobbyPhoto[]
+  followers        User[]   @relation("UserFollows")
+  following        User[]   @relation("UserFollows")
+  notifications    Notification[]
 }
 
 model Lobby {
@@ -56,6 +59,7 @@ model Lobby {
   categoryDetails  Json?
   creatorId        String
   active           Boolean   @default(true)
+  reminderSent     Boolean   @default(false)
   creator          User      @relation("LobbyCreator", fields: [creatorId], references: [id])
   participants     LobbyParticipant[]
   messages         LobbyMessage[]
@@ -123,6 +127,16 @@ model LobbyPhoto {
   driveFileId String?
   driveWebViewLink String?
   lobby     Lobby    @relation(fields: [lobbyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 }
