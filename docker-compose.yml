@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   web:
@@ -6,15 +5,13 @@ services:
       context: ./huddle-web
       dockerfile: Dockerfile.dev
     ports:
-      - "5173:5173"
+      - "3000:3000"
     volumes:
       - ./huddle-web:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
-    # We will just run via node locally for now, so a dockerfile might not be needed if not using Docker.
-    # However, for local orchestration:
-    command: npm run dev -- --host 0.0.0.0
+    command: npm run dev -- -H 0.0.0.0
     
   chat-server:
     build:
