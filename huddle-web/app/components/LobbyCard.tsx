@@ -39,7 +39,7 @@ export default function LobbyCard({
   return (
     <div className="group bg-white/60 backdrop-blur-xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/80 rounded-3xl overflow-hidden flex transition-all duration-300 mb-6">
       {/* Main Content */}
-      <div className="flex-1 p-6 flex flex-col min-w-0">
+      <div className="flex-1 p-4 sm:p-6 flex flex-col min-w-0">
         {/* Post Meta Header */}
         <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
           {lobby.category && (
@@ -78,7 +78,7 @@ export default function LobbyCard({
 
         {/* Post Action Footer */}
         <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1 text-slate-500 font-semibold text-xs">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-slate-500 font-semibold text-xs">
             <button 
               onClick={() => handleLike(lobby.id)}
               className={`flex items-center gap-1.5 hover:bg-slate-100 px-2 py-1.5 rounded transition-colors ${lobby.likes?.length > 0 ? 'text-red-500' : ''}`}
@@ -103,7 +103,7 @@ export default function LobbyCard({
             </button>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
             {isCreator && (
               <button
                 onClick={() => setConfirmModal({ open: true, targetId: lobby.id, loading: false })}

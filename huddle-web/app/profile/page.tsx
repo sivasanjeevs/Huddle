@@ -158,7 +158,7 @@ const Profile = () => {
   if (!isMounted) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 font-sans">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* LEFT COLUMN: Main Profile */}
@@ -181,14 +181,14 @@ const Profile = () => {
             </div>
             
             {/* Avatar & Basic Info */}
-            <div className="px-6 sm:px-10 pb-10 relative">
-              <div className="relative -mt-20 mb-6 flex justify-between items-end">
+            <div className="px-4 sm:px-10 pb-10 relative">
+              <div className="relative -mt-16 sm:-mt-20 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:justify-between items-center sm:items-end text-center sm:text-left gap-4">
                 <div className="relative group">
                   <div className="p-1.5 bg-white rounded-full shadow-lg">
                     <img 
                       src={displayAvatar} 
                       alt="Avatar" 
-                      className="w-36 h-36 rounded-full object-cover bg-slate-50 border border-slate-100"
+                      className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover bg-slate-50 border border-slate-100"
                     />
                   </div>
                   {isEditing && (
@@ -261,7 +261,7 @@ const Profile = () => {
                   </div>
 
                   {/* Quick Stats */}
-                  <div className="flex gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm shrink-0">
+                  <div className="w-full md:w-auto flex justify-around sm:justify-start gap-2 sm:gap-4 p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm shrink-0">
                     <div 
                       className="text-center px-4 border-r border-slate-200 last:border-0 cursor-pointer hover:bg-slate-200 rounded-lg transition-colors"
                       onClick={() => { setModalType('hosted'); setModalOpen(true); }}

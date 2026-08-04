@@ -252,7 +252,7 @@ function LobbyWorkspace() {
       <div className="absolute top-0 left-0 w-96 h-96 bg-blue-300/30 rounded-full blur-[100px] pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
       <div className="absolute bottom-0 right-0 w-[30rem] h-[30rem] bg-indigo-300/20 rounded-full blur-[120px] pointer-events-none translate-x-1/3 translate-y-1/3"></div>
       
-      <div className="max-w-[1400px] mx-auto px-4 py-6 flex gap-5 items-start relative z-10">
+      <div className="max-w-[1400px] mx-auto px-4 py-6 flex flex-col lg:flex-row gap-5 items-start relative z-10">
 
         {/* ─── LEFT COLUMN ──────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 flex flex-col gap-5">
@@ -515,7 +515,7 @@ function LobbyWorkspace() {
         </div>
 
         {/* ─── RIGHT COLUMN: CHAT ──────────────────────────────────── */}
-        <div className="-mt-4 w-1/3 min-w-[320px] max-w-[450px] shrink-0 bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col sticky top-[25px]" style={{ height: 'calc(100vh - 80px)' }}>
+        <div className="lg:-mt-4 w-full lg:w-1/3 lg:min-w-[320px] lg:max-w-[450px] shrink-0 bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col sticky top-[25px]" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Chat Header */}
           <div className="p-5 border-b border-white/50 bg-white/40 rounded-t-[2rem] flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">

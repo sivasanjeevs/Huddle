@@ -115,15 +115,15 @@ function Home() {
 
   return (
     <>
-    <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto mb-8">
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 py-4 md:py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto mb-4 md:mb-8">
         <ProfilesList />
       </div>
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* ── LEFT: All Lobbies ──────────────────────────────────────────── */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
-          <div className="relative p-6 border-b border-slate-100 bg-gradient-to-br from-blue-50/50 via-white to-white overflow-hidden">
+          <div className="relative p-4 sm:p-6 border-b border-slate-100 bg-gradient-to-br from-blue-50/50 via-white to-white overflow-hidden">
             
             <div className="relative z-10 flex flex-col mb-6">
               <div className="flex items-center justify-between mb-1">
@@ -158,7 +158,7 @@ function Home() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-x-hidden p-5 relative bg-slate-50/30">
+          <div className="flex-1 overflow-x-hidden p-3 sm:p-5 relative bg-slate-50/30">
             {/* Subtle glowing orbs for glassmorphism background */}
             <div className="absolute top-0 left-1/4 w-72 h-72 bg-blue-300/20 rounded-full blur-3xl pointer-events-none -translate-y-1/2"></div>
             <div className="absolute bottom-1/4 right-0 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl pointer-events-none translate-x-1/4"></div>
