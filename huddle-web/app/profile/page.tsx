@@ -13,6 +13,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   // Hero Fields
   const [name, setName] = useState(user?.name || '');
@@ -48,17 +49,18 @@ const Profile = () => {
   const [aiSuggestions, setAiSuggestions] = useState([]);
 
   useEffect(() => {
+    setIsMounted(true);
     fetchProfile();
     // Fetch global lobbies to filter for AI suggestions
     const fetchSuggestions = async () => {
       try {
         const res = await api.get('/lobbies');
         const allLobbies = res.data;
-        const matched = allLobbies.filter(lobby => 
-          interests.some(interest => lobby.category.toLowerCase().includes(interest.toLowerCase()) || 
+        const matched = allLobbies.filter((lobby: any) => 
+          interests.some((interest: string) => lobby.category.toLowerCase().includes(interest.toLowerCase()) || 
                                      lobby.title.toLowerCase().includes(interest.toLowerCase()))
         );
-        const suggestions = matched.length >= 3 ? matched : [...matched, ...allLobbies.filter(l => !matched.includes(l))].slice(0, 3);
+        const suggestions = matched.length >= 3 ? matched : [...matched, ...allLobbies.filter((l: any) => !matched.includes(l))].slice(0, 3);
         setAiSuggestions(suggestions);
       } catch (err) {
         console.error("Failed to fetch suggestions", err);
@@ -70,7 +72,7 @@ const Profile = () => {
   const displayAvatar = avatar || getDefaultAvatar(user?.id);
   const username = `@${(name || 'user').toLowerCase().replace(/\s+/g, '')}`;
 
-  const toggleArrayItem = (setter, array, item) => {
+  const toggleArrayItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, array: string[], item: string) => {
     if (array.includes(item)) {
       setter(array.filter((i) => i !== item));
     } else {
@@ -78,7 +80,7 @@ const Profile = () => {
     }
   };
 
-  const handleAddInterest = (e) => {
+  const handleAddInterest = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (newInterest.trim() && !interests.includes(newInterest.trim())) {
@@ -88,7 +90,7 @@ const Profile = () => {
     }
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return setMessage('Name is required.');
 
@@ -122,7 +124,7 @@ const Profile = () => {
   const travelRadii = ["5 km", "10 km", "25 km", "Anywhere"];
 
   // Render a chip
-  const renderChip = (label, isSelected, onClick, colorClass = "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20") => {
+  const renderChip = (label: string, isSelected: boolean, onClick: () => void, colorClass = "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20") => {
     const selectedClass = isSelected 
       ? "bg-blue-600 text-white border-blue-600 shadow-[0_4px_12px_-2px_rgba(37,99,235,0.3)]" 
       : colorClass;
@@ -141,7 +143,7 @@ const Profile = () => {
   };
 
   const getRecentActivities = () => {
-    let activities = [];
+    let activities: any[] = [];
     if (user?.createdLobbies) {
       activities = [...activities, ...user.createdLobbies.map(l => ({ type: 'hosted', data: l, date: new Date(l.createdAt || Date.now()) }))];
     }
@@ -152,6 +154,8 @@ const Profile = () => {
   };
 
   const recentActivities = getRecentActivities();
+
+  if (!isMounted) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
@@ -232,7 +236,7 @@ const Profile = () => {
                         <textarea 
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
-                          rows="2"
+                          rows={2}
                           className="text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 w-full focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                           placeholder="Write a short, fun bio..."
                         />
@@ -294,9 +298,9 @@ const Profile = () => {
                       <div>
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Languages</label>
                         <div className="flex flex-wrap gap-2">
-                          {isEditing ? suggestedLanguages.map(item => 
+                          {isEditing ? suggestedLanguages.map((item: string) => 
                             renderChip(item, languages.includes(item), () => toggleArrayItem(setLanguages, languages, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
-                          ) : languages.map(item => 
+                          ) : languages.map((item: string) => 
                             renderChip(item, true, () => {}, "bg-slate-50 text-slate-600 border-slate-200 cursor-default")
                           )}
                           {!isEditing && languages.length === 0 && <span className="text-sm text-slate-400">Not specified</span>}
@@ -305,9 +309,9 @@ const Profile = () => {
                       <div>
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Availability</label>
                         <div className="flex flex-wrap gap-2">
-                          {isEditing ? suggestedAvailability.map(item => 
+                          {isEditing ? suggestedAvailability.map((item: string) => 
                             renderChip(item, availability.includes(item), () => toggleArrayItem(setAvailability, availability, item), "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")
-                          ) : availability.map(item => 
+                          ) : availability.map((item: string) => 
                             renderChip(item, true, () => {}, "bg-slate-50 text-slate-600 border-slate-200 cursor-default")
                           )}
                           {!isEditing && availability.length === 0 && <span className="text-sm text-slate-400">Not specified</span>}
@@ -481,7 +485,7 @@ const Profile = () => {
             </div>
 
             <div className="space-y-4 relative z-10">
-              {aiSuggestions.length > 0 ? aiSuggestions.map(lobby => (
+              {aiSuggestions.length > 0 ? aiSuggestions.map((lobby: any) => (
                 <div 
                   key={lobby.id} 
                   onClick={() => navigate(`/lobby/${lobby.id}`)}
@@ -569,7 +573,7 @@ const Profile = () => {
             <div className="p-2 max-h-[60vh] overflow-y-auto">
               {modalType === 'hosted' && (
                 <div className="space-y-1 p-2">
-                  {user?.createdLobbies?.length > 0 ? user.createdLobbies.map(lobby => (
+                  {(user?.createdLobbies?.length ?? 0) > 0 ? user!.createdLobbies!.map((lobby: any) => (
                     <div key={lobby.id} onClick={() => { setModalOpen(false); navigate(`/lobby/${lobby.id}`); }} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
                       <div className="w-12 h-12 bg-blue-50 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-blue-500 font-bold border border-blue-100">
                         {lobby.coverImage ? <img src={lobby.coverImage} className="w-full h-full object-cover" alt="" /> : lobby.title.charAt(0)}
@@ -586,7 +590,7 @@ const Profile = () => {
               )}
               {modalType === 'followers' && (
                 <div className="space-y-1 p-2">
-                  {user?.followers?.length > 0 ? user.followers.map(f => (
+                  {(user?.followers?.length ?? 0) > 0 ? user!.followers!.map((f: any) => (
                     <div key={f.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
                       <img src={f.avatar || getDefaultAvatar(f.id)} className="w-12 h-12 rounded-full object-cover border border-slate-200" alt={f.name} />
                       <div>
@@ -600,7 +604,7 @@ const Profile = () => {
               )}
               {modalType === 'following' && (
                 <div className="space-y-1 p-2">
-                  {user?.following?.length > 0 ? user.following.map(f => (
+                  {(user?.following?.length ?? 0) > 0 ? user!.following!.map((f: any) => (
                     <div key={f.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
                       <img src={f.avatar || getDefaultAvatar(f.id)} className="w-12 h-12 rounded-full object-cover border border-slate-200" alt={f.name} />
                       <div>

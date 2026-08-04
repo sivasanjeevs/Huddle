@@ -2,13 +2,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import useAuthStore from '../store/authStore';
 import { getDefaultAvatar } from '../utils/avatar';
 import api from '../services/api';
 import { io, Socket } from 'socket.io-client';
 
+const AUTH_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password'];
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, logout } = useAuthStore();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isAuthPage = AUTH_ROUTES.some(route => pathname?.startsWith(route));
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -67,6 +73,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center">
+      {!isAuthPage && (
       <header className="w-full bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
           <Link href="/" className="flex items-center">
@@ -140,7 +147,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                       My Profile
                     </Link>
                     <div className="border-t border-slate-100 mt-1">
-                      <button id="logout-btn" onClick={() => { setProfileOpen(false); logout(); }} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                      <button id="logout-btn" onClick={() => { setProfileOpen(false); logout(); router.push('/login'); }} className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -159,6 +166,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           )}
         </div>
       </header>
+      )}
 
       <main className="w-full flex-1">
         {children}

@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { lobbyService } from './services/lobbyService';
 import useAuthStore from './store/authStore';
 import ConfirmModal from './components/ConfirmModal';
@@ -10,13 +11,22 @@ import ProfilesList from './components/ProfilesList';
 // ─── Home / Lobbies Page ──────────────────────────────────────────────────────
 function Home() {
   const [search, setSearch] = useState('');
-  const [lobbies, setLobbies] = useState([]);
-  const [joinedLobbies, setJoinedLobbies] = useState([]);
+  const [lobbies, setLobbies] = useState<any[]>([]);
+  const [joinedLobbies, setJoinedLobbies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [expandedComments, setExpandedComments] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [expandedComments, setExpandedComments] = useState<any[]>([]);
   const [confirmModal, setConfirmModal] = useState({ open: false, targetId: null, loading: false });
-  const { user } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
+  const { user, isAuthenticated } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (isMounted && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router, isMounted]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,7 +34,7 @@ function Home() {
         const all = await lobbyService.getLobbies();
         const my = await lobbyService.getMyLobbies();
         setLobbies(all);
-        setJoinedLobbies(my.map(l => l.id));
+        setJoinedLobbies(my.map((l: any) => l.id));
       } catch (error) {
         console.error("Failed to fetch lobbies", error);
       } finally {
@@ -34,7 +44,7 @@ function Home() {
     fetchData();
   }, []);
 
-  const handleLike = async (lobbyId) => {
+  const handleLike = async (lobbyId: string) => {
     if (!user) return alert('Please log in to like a post');
     try {
       const res = await lobbyService.toggleLike(lobbyId);
@@ -55,7 +65,7 @@ function Home() {
     }
   };
 
-  const toggleComments = (lobbyId) => {
+  const toggleComments = (lobbyId: string) => {
     if (expandedComments.includes(lobbyId)) {
       setExpandedComments(expandedComments.filter(id => id !== lobbyId));
     } else {
@@ -63,7 +73,7 @@ function Home() {
     }
   };
 
-  const handleJoin = async (lobbyId) => {
+  const handleJoin = async (lobbyId: string) => {
     if (!joinedLobbies.includes(lobbyId)) {
       try {
         await lobbyService.joinLobby(lobbyId);
@@ -83,7 +93,7 @@ function Home() {
       setConfirmModal({ open: false, targetId: null, loading: false });
     } catch (error) {
       setConfirmModal(m => ({ ...m, loading: false }));
-      const msg = error?.response?.data?.error || 'Failed to end the event.';
+      const msg = (error as any)?.response?.data?.error || 'Failed to end the event.';
       alert(`Error: ${msg}`);
     }
   };
@@ -100,6 +110,8 @@ function Home() {
 
     return matchesSearch && matchesCategory;
   });
+
+  if (!isMounted || !isAuthenticated) return null;
 
   return (
     <>
