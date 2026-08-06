@@ -38,8 +38,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         setNotifications(prev => [notification, ...prev]);
       });
 
+      newSocket.on('online_users', (users: string[]) => {
+        useAuthStore.getState().setOnlineUsers(users);
+      });
+
       return () => {
         newSocket.disconnect();
+        useAuthStore.getState().setOnlineUsers([]);
       };
     }
   }, [isAuthenticated]);

@@ -24,7 +24,9 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  onlineUsers: string[];
   setAuth: (user: User, token: string) => void;
+  setOnlineUsers: (users: string[]) => void;
   logout: () => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
@@ -39,11 +41,16 @@ const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: typeof window !== 'undefined' ? !!localStorage.getItem('huddle_token') : false,
   isLoading: false,
   error: null,
+  onlineUsers: [],
 
   setAuth: (user: User, token: string) => {
     localStorage.setItem('huddle_token', token);
     localStorage.setItem('huddle_user', JSON.stringify(user));
     set({ user, token, isAuthenticated: true, error: null });
+  },
+
+  setOnlineUsers: (users: string[]) => {
+    set({ onlineUsers: users });
   },
 
   logout: () => {

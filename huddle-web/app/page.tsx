@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Compass } from 'lucide-react';
 import { lobbyService } from './services/lobbyService';
 import useAuthStore from './store/authStore';
 import ConfirmModal from './components/ConfirmModal';
@@ -130,11 +131,8 @@ function Home() {
                 <h2 className="text-3xl font-extrabold text-black tracking-tight">
                   {selectedCategory ? `${selectedCategory.name} Lobbies` : 'Explore Lobbies'}
                 </h2>
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-inner hidden sm:block">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <polygon points="16 8 14 14 8 16 10 10 16 8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                <div className="p-3 rounded-2xl hidden sm:block">
+                  <Compass className="w-6 h-6 text-black" />
                 </div>
               </div>
               <p className="text-sm text-slate-500 font-medium">

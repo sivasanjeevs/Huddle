@@ -4,6 +4,25 @@ import { useNavigate } from '@/app/hooks/useNavigate';
 import { lobbyService } from '../services/lobbyService';
 import { aiService } from '../services/aiService';
 
+// ── Confetti burst utility ─────────────────────────────────────────
+const CONFETTI_COLORS = ['#6366f1','#8b5cf6','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899'];
+function fireConfetti() {
+  const count = 60;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = `${Math.random() * 100}vw`;
+    el.style.width = `${6 + Math.random() * 8}px`;
+    el.style.height = `${6 + Math.random() * 8}px`;
+    el.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    el.style.animationDuration = `${0.8 + Math.random() * 1.4}s`;
+    el.style.animationDelay = `${Math.random() * 0.4}s`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
 const CATEGORIES = [
   {
     name: 'Sports',
@@ -174,6 +193,7 @@ function CreateLobby() {
   const [mode, setMode] = useState('manual'); // 'manual' | 'ai'
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [missingInfo, setMissingInfo] = useState([]);
   const [aiGenerated, setAiGenerated] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
@@ -212,7 +232,7 @@ function CreateLobby() {
   };
 
   const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) return;
+    if (!aiPrompt.trim() || isGenerating) return;
     
     setIsGenerating(true);
     setMissingInfo([]);
@@ -250,6 +270,8 @@ function CreateLobby() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const selectedCategory = CATEGORIES.find(c => c.name === formData.category);
       let categoryDetails = {};
@@ -274,10 +296,13 @@ function CreateLobby() {
       };
 
       await lobbyService.createLobby(payload);
-      navigate('/');
+      fireConfetti();
+      setTimeout(() => navigate('/'), 900);
     } catch (error) {
       console.error("Failed to create lobby:", error);
       alert("Failed to create lobby. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -671,9 +696,15 @@ function CreateLobby() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-4 text-sm font-semibold text-white bg-blue-600/80 hover:bg-blue-700 rounded-xl shadow-md transition-all focus:outline-none focus:ring-4 focus:ring-slate-900/20"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-4 text-sm font-semibold text-white bg-blue-600/80 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-xl shadow-md transition-all focus:outline-none focus:ring-4 focus:ring-slate-900/20 flex items-center justify-center gap-2"
                 >
-                  Create Event
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      Creating...
+                    </>
+                  ) : 'Create Event'}
                 </button>
               </div>
 

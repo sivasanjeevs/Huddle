@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { LayoutGrid } from 'lucide-react';
 import { GROUPED_CATEGORIES } from '../constants/categories';
 
 export default function CategoriesSidebar({ selectedCategory, setSelectedCategory }) {
@@ -21,12 +22,8 @@ export default function CategoriesSidebar({ selectedCategory, setSelectedCategor
               Clear Selection
             </button>
           ) : (
-            <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl shadow-inner">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="7" height="7" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <rect x="13" y="4" width="7" height="16" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <rect x="4" y="13" width="7" height="7" rx="2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className="p-2 rounded-xl">
+              <LayoutGrid className="w-6 h-6 text-black" />
             </div>
           )}
         </div>

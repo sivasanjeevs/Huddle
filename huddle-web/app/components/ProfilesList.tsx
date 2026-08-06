@@ -6,7 +6,7 @@ import { getDefaultAvatar } from '../utils/avatar';
 export default function ProfilesList() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuthStore();
+  const { user, onlineUsers } = useAuthStore();
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -105,6 +105,10 @@ export default function ProfilesList() {
                   alt={profile.name} 
                   className="relative w-full h-full object-cover rounded-full border-[3px] border-white shadow-sm bg-slate-100"
                 />
+                {/* Real online presence dot */}
+                {onlineUsers.includes(profile.id) && (
+                  <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white presence-dot" title="Online" />
+                )}
               </div>
               
               <h3 className="font-bold text-slate-700 text-center text-sm truncate w-full group-hover:text-blue-600 transition-colors">

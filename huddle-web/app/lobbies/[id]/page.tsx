@@ -3,6 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { io } from 'socket.io-client';
+import {
+  Calendar, MapPin, Users, MessageSquare, Image as ImageIcon,
+  Crown, Lock, Send, Smile, Upload, Download, Trash2,
+  X, ChevronLeft, Pencil, CircleDot, Eye, AlertTriangle
+} from 'lucide-react';
 import { getDefaultAvatar } from '../../utils/avatar';
 import { lobbyService } from '../../services/lobbyService';
 import useAuthStore from '../../store/authStore';
@@ -24,6 +29,10 @@ function LobbyWorkspace() {
   const [isEditingEvent, setIsEditingEvent] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [showFullDesc, setShowFullDesc] = useState(false);
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({ open: false, type: null, loading: false });
   const { user: currentUser } = useAuthStore();
@@ -104,23 +113,31 @@ function LobbyWorkspace() {
   const isHost = lobby?.creatorId === currentUser?.id;
 
   const handleJoin = async () => {
+    if (isJoining) return;
+    setIsJoining(true);
     try {
       await lobbyService.joinLobby(id);
       const updatedLobby = await lobbyService.getLobbyById(id);
       setLobby(updatedLobby);
     } catch (error) {
       alert('Failed to join lobby');
+    } finally {
+      setIsJoining(false);
     }
   };
 
   const handleLeave = async () => {
+    if (isLeaving) return;
     if (window.confirm('Are you sure you want to leave this event?')) {
+      setIsLeaving(true);
       try {
         await lobbyService.leaveLobby(id);
         const updatedLobby = await lobbyService.getLobbyById(id);
         setLobby(updatedLobby);
       } catch (error) {
         alert('Failed to leave lobby');
+      } finally {
+        setIsLeaving(false);
       }
     }
   };
@@ -153,12 +170,16 @@ function LobbyWorkspace() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    if (isEditSubmitting) return;
+    setIsEditSubmitting(true);
     try {
       const response = await lobbyService.updateLobby(id, editFormData);
       setLobby(response.lobby);
       setIsEditingEvent(false);
     } catch (error) {
       alert(error?.response?.data?.error || 'Failed to update event.');
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -265,48 +286,54 @@ function LobbyWorkspace() {
               {/* Category + Status badges */}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-600 rounded-lg border border-blue-100">
+                  <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 rounded-lg border border-slate-200">
                     {lobby.category}
                   </span>
-                  <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border ${lobby.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                    {lobby.active ? '● Live' : 'Ended'}
+                  <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border flex items-center gap-1 ${lobby.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                    <CircleDot className="w-3 h-3" />
+                    {lobby.active ? 'Live' : 'Ended'}
                   </span>
                 </div>
-                <span className="text-xs text-slate-400 font-medium">{lobby.visibility}</span>
+                <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                  {lobby.visibility === 'Private' ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {lobby.visibility}
+                </span>
               </div>
 
               {/* Title + Description */}
               <div>
                 <h1 className="text-xl font-bold text-slate-900 leading-tight mb-1.5">{lobby.title}</h1>
-                <p className="text-sm text-slate-500 leading-relaxed line-clamp-3">{lobby.description}</p>
+                <p className={`text-sm text-slate-500 leading-relaxed ${!showFullDesc ? 'line-clamp-3' : ''}`}>{lobby.description}</p>
+                {lobby.description && lobby.description.length > 160 && (
+                  <button
+                    onClick={() => setShowFullDesc(v => !v)}
+                    className="mt-1.5 text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors"
+                  >
+                    {showFullDesc ? 'Show less ↑' : 'Show more ↓'}
+                  </button>
+                )}
               </div>
 
-              {/* Date / Time / Location */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  </div>
+              {/* Date / Time / Location / Participants */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3 text-sm text-slate-700">
+                  <Calendar className="w-4 h-4 text-black shrink-0" />
                   <span className="font-medium">{lobby.date} at {lobby.time}</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                  <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  </div>
+                <div className="flex items-center gap-3 text-sm text-slate-700">
+                  <MapPin className="w-4 h-4 text-black shrink-0" />
                   <span className="font-medium">{lobby.location}</span>
                 </div>
                 {lobby.maxParticipants && (
-                  <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                    <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                      <svg className="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-700">
+                    <Users className="w-4 h-4 text-black shrink-0" />
                     <span className="font-medium">Max {lobby.maxParticipants} participants</span>
                   </div>
                 )}
               </div>
 
               {/* Host info */}
-              <div className="flex items-center gap-2.5 pt-3">
+              <div className="flex items-center gap-2.5 pt-2 border-t border-slate-100">
                 <img
                   src={lobby.creator?.avatar || getDefaultAvatar(lobby.creatorId)}
                   alt={lobby.creator?.name}
@@ -319,11 +346,11 @@ function LobbyWorkspace() {
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-wrap items-center gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {isHost ? (
                   <>
-                    <button onClick={openEditModal} className="flex-1 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100">
-                      Edit Event
+                    <button onClick={openEditModal} className="flex-1 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200 flex items-center justify-center gap-1.5">
+                      <Pencil className="w-3 h-3 text-black" /> Edit Event
                     </button>
                     {lobby.active && (
                       <button onClick={() => setConfirmModal({ open: true, type: 'end', loading: false })} className="flex-1 py-2 text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100">
@@ -335,12 +362,12 @@ function LobbyWorkspace() {
                     </button>
                   </>
                 ) : isJoined ? (
-                  <button onClick={handleLeave} className="flex-1 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100">
-                    Leave Event
+                  <button onClick={handleLeave} disabled={isLeaving} className="flex-1 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-60 rounded-lg transition-colors border border-red-100">
+                    {isLeaving ? 'Leaving...' : 'Leave Event'}
                   </button>
                 ) : (
-                  <button onClick={handleJoin} className="flex-1 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                    Join Event
+                  <button onClick={handleJoin} disabled={isJoining} className="flex-1 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-lg transition-colors">
+                    {isJoining ? 'Joining...' : 'Join Event'}
                   </button>
                 )}
               </div>
@@ -349,7 +376,7 @@ function LobbyWorkspace() {
             {/* Box 2: Members */}
             <div className="md:col-span-1 bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 flex flex-col">
               <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <Users className="w-4 h-4 text-black" />
                 Members
                 <span className="ml-auto bg-slate-100 text-slate-500 text-[11px] font-semibold px-2 py-0.5 rounded-full">
                   {lobby.participants?.length || 0}
@@ -366,7 +393,7 @@ function LobbyWorkspace() {
                       />
                       {p.user.id === lobby.creatorId && (
                         <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                          <Crown className="w-2.5 h-2.5 text-white" />
                         </span>
                       )}
                     </div>
@@ -385,9 +412,7 @@ function LobbyWorkspace() {
           {/* GOOGLE MAPS */}
           <div className="bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden">
             <div className="flex items-center gap-2.5 px-5 py-3.5">
-              <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center">
-                <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              </div>
+              <MapPin className="w-4 h-4 text-black shrink-0" />
               <div>
                 <p className="text-sm font-bold text-slate-800">Event Location</p>
                 <p className="text-xs text-slate-400">{lobby.location}</p>
@@ -409,9 +434,7 @@ function LobbyWorkspace() {
           <div className="bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                </div>
+                <ImageIcon className="w-4 h-4 text-black shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-slate-800">Event Memories</p>
                   <p className="text-xs text-slate-400">{photos.length} photo{photos.length !== 1 ? 's' : ''} shared</p>
@@ -439,7 +462,7 @@ function LobbyWorkspace() {
                         </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                          <Upload className="w-4 h-4 text-white" />
                           Upload Photo
                         </>
                       )}
@@ -487,7 +510,14 @@ function LobbyWorkspace() {
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5">
                       <p className="text-white text-[10px] font-semibold truncate mb-1">{photo.user?.name}</p>
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleDownloadPhoto(photo.filename)}
+                          className="flex items-center justify-center p-1.5 backdrop-blur-sm rounded-lg text-white bg-slate-700/80 hover:bg-slate-700 border border-white/10 transition-colors"
+                          title="Download"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
                         <button
                           onClick={() => {
                             if (currentUser?.id === photo.userId || isHost) {
@@ -497,13 +527,13 @@ function LobbyWorkspace() {
                             }
                           }}
                           className={`flex items-center justify-center p-1.5 backdrop-blur-sm rounded-lg transition-colors border ${
-                            (currentUser?.id === photo.userId || isHost) 
-                              ? 'text-white bg-red-500/80 hover:bg-red-500 border-red-500/50' 
+                            (currentUser?.id === photo.userId || isHost)
+                              ? 'text-white bg-red-500/80 hover:bg-red-500 border-red-500/50'
                               : 'text-white/50 bg-slate-500/30 border-slate-500/30 cursor-not-allowed'
                           }`}
                           title={currentUser?.id === photo.userId || isHost ? "Delete Photo" : "Only the photo owner or host can delete"}
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -518,9 +548,7 @@ function LobbyWorkspace() {
         <div className="lg:-mt-4 w-full lg:w-1/3 lg:min-w-[320px] lg:max-w-[450px] shrink-0 bg-white/70 backdrop-blur-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex flex-col sticky top-[25px]" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Chat Header */}
           <div className="p-5 border-b border-white/50 bg-white/40 rounded-t-[2rem] flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-            </div>
+            <MessageSquare className="w-5 h-5 text-black shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">Lobby Chat</h3>
               <p className="text-[10px] text-slate-400">{lobby.participants?.length || 0} members</p>
@@ -544,7 +572,7 @@ function LobbyWorkspace() {
               <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-transparent" ref={chatContainerRef}>
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-300">
-                    <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <MessageSquare className="w-10 h-10 mb-2" />
                     <p className="text-xs font-medium">No messages yet. Say hello!</p>
                   </div>
                 ) : (
@@ -584,7 +612,7 @@ function LobbyWorkspace() {
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     className="pl-4 pr-2 py-3.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <Smile className="w-6 h-6" />
                   </button>
                   <input
                     type="text"
@@ -598,7 +626,7 @@ function LobbyWorkspace() {
                     disabled={!newMessage.trim()}
                     className="mr-2 p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-md"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    <Send className="w-4 h-4" />
                   </button>
                 </div>
               </form>
@@ -640,7 +668,7 @@ function LobbyWorkspace() {
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="font-bold text-xl text-slate-800">Edit Event</h3>
               <button onClick={() => setIsEditingEvent(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
             <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto space-y-4">
@@ -681,7 +709,9 @@ function LobbyWorkspace() {
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
                 <button type="button" onClick={() => setIsEditingEvent(false)} className="px-5 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold transition-colors">Cancel</button>
-                <button type="submit" className="px-5 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-colors shadow-[0_4px_12px_rgba(37,99,235,0.3)]">Save Changes</button>
+                <button type="submit" disabled={isEditSubmitting} className="px-5 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-xl font-bold transition-colors shadow-[0_4px_12px_rgba(37,99,235,0.3)]">
+                  {isEditSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>

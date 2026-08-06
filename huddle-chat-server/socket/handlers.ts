@@ -4,18 +4,37 @@ const jwt = require('jsonwebtoken');
 
 let ioInstance;
 
+// Map of userId -> Set of socketIds
+const connectedUsers = new Map();
+
 function registerSocketHandlers(io) {
   ioInstance = io;
 
   io.on('connection', (socket) => {
     console.log(`[Socket] User connected: ${socket.id}`);
+    
+    // Immediately send current online users to the new connection
+    socket.emit('online_users', Array.from(connectedUsers.keys()));
 
     const token = socket.handshake.auth?.token;
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        socket.join(`user_${decoded.userId}`);
-        console.log(`[Socket] User ${socket.id} authenticated and joined user_${decoded.userId}`);
+        const userId = decoded.userId;
+        socket.userId = userId; // Attach to socket for disconnect handler
+        
+        socket.join(`user_${userId}`);
+        
+        // Track presence
+        if (!connectedUsers.has(userId)) {
+          connectedUsers.set(userId, new Set());
+        }
+        connectedUsers.get(userId).add(socket.id);
+        
+        // Broadcast online users
+        io.emit('online_users', Array.from(connectedUsers.keys()));
+        
+        console.log(`[Socket] User ${socket.id} authenticated and joined user_${userId}`);
       } catch (err) {
         console.error('[Socket] Invalid token for user connection');
       }
@@ -114,6 +133,14 @@ function registerSocketHandlers(io) {
 
     socket.on('disconnect', () => {
       console.log(`[Socket] User disconnected: ${socket.id}`);
+      if (socket.userId && connectedUsers.has(socket.userId)) {
+        const userSockets = connectedUsers.get(socket.userId);
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          connectedUsers.delete(socket.userId);
+        }
+        io.emit('online_users', Array.from(connectedUsers.keys()));
+      }
     });
   });
 }
